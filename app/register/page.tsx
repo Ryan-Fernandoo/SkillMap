@@ -12,6 +12,46 @@ import {
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 
+type InfoBadgeProps = {
+  label: string;
+  value: string;
+  variant: "blue" | "white" | "yellow";
+};
+
+function InfoBadge({
+  label,
+  value,
+  variant,
+}: InfoBadgeProps) {
+  const variantClass = {
+    blue: "border-blue-100 bg-blue-50",
+    white: "border-slate-200 bg-white shadow-sm",
+    yellow: "border-yellow-200 bg-yellow-50",
+  };
+
+  const valueClass = {
+    blue: "text-blue-700",
+    white: "text-slate-800",
+    yellow: "text-yellow-700",
+  };
+
+  return (
+    <div
+      className={`min-w-[132px] rounded-xl border px-4 py-3 ${variantClass[variant]}`}
+    >
+      <p className="text-xs text-slate-500">
+        {label}
+      </p>
+
+      <p
+        className={`mt-1 text-sm font-semibold ${valueClass[variant]}`}
+      >
+        {value}
+      </p>
+    </div>
+  );
+}
+
 export default function RegisterPage() {
   const router = useRouter();
 
@@ -44,15 +84,16 @@ export default function RegisterPage() {
     setLoading(true);
 
     try {
-      const { data, error } = await supabase.auth.signUp({
-        email: email.trim(),
-        password,
-        options: {
-          data: {
-            name: name.trim(),
+      const { data, error } =
+        await supabase.auth.signUp({
+          email: email.trim(),
+          password,
+          options: {
+            data: {
+              name: name.trim(),
+            },
           },
-        },
-      });
+        });
 
       if (error) {
         setErrorMessage(error.message);
@@ -86,30 +127,113 @@ export default function RegisterPage() {
   }
 
   return (
-    <main className="relative min-h-screen overflow-hidden bg-slate-50">
+    <main className="relative min-h-screen overflow-x-hidden bg-slate-50">
       {/* Background decoration */}
-      <div className="pointer-events-none absolute -right-32 -top-32 h-96 w-96 rounded-full bg-blue-100 blur-3xl" />
+      <div className="pointer-events-none absolute -right-40 -top-40 h-[420px] w-[420px] rounded-full bg-blue-100/80 blur-3xl" />
 
-      <div className="pointer-events-none absolute -bottom-40 -left-32 h-96 w-96 rounded-full bg-yellow-100/70 blur-3xl" />
+      <div className="pointer-events-none absolute -bottom-48 -left-40 h-[440px] w-[440px] rounded-full bg-yellow-100/70 blur-3xl" />
 
       {/* Logo */}
-      <div className="absolute left-6 top-6 z-10 sm:left-8 sm:top-8">
-        <Link href="/" className="flex items-center gap-2">
-          <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-blue-600 text-sm font-bold text-white shadow-lg shadow-blue-600/20">
+      <div className="absolute left-5 top-5 z-10 sm:left-8 sm:top-7 lg:left-10 lg:top-8">
+        <Link
+          href="/"
+          className="flex items-center gap-2"
+        >
+          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-600 text-sm font-bold text-white shadow-lg shadow-blue-600/20 sm:h-11 sm:w-11">
             S
           </div>
 
-          <span className="text-lg font-bold tracking-tight text-slate-900">
+          <span className="text-lg font-bold tracking-tight text-slate-900 sm:text-xl">
             Skill<span className="text-blue-600">Map</span>
           </span>
         </Link>
       </div>
 
-      <div className="relative flex min-h-screen items-center justify-center px-5 py-24">
-        <div className="grid w-full max-w-5xl items-center gap-10 lg:grid-cols-[1.1fr_0.9fr]">
-          {/* Register card */}
-          <div className="order-2 mx-auto w-full max-w-md lg:order-1">
-            <div className="skillmap-card p-7 sm:p-8">
+      {/* Main */}
+      <div className="relative flex min-h-screen items-start justify-center px-5 pb-12 pt-28 sm:px-8 sm:pt-32 lg:items-center lg:px-10 lg:py-28">
+        <div className="mx-auto grid w-full max-w-[1180px] items-center gap-12 lg:grid-cols-[1fr_0.9fr] lg:gap-16 xl:gap-24">
+          
+          {/* LEFT INFORMATION */}
+          <section className="w-full">
+            <div className="mx-auto max-w-xl lg:mx-0">
+              
+              {/* Badge */}
+              <div className="skillmap-badge-blue mb-5 w-fit px-3.5 py-2 text-xs font-semibold">
+                <Sparkles size={14} />
+                Mulai perjalananmu
+              </div>
+
+              {/* Heading */}
+              <h1 className="max-w-xl text-4xl font-black leading-[1.04] tracking-[-0.035em] text-slate-950 sm:text-5xl lg:text-5xl xl:text-6xl">
+                Kenali skillmu.
+                <span className="block text-blue-600">
+                  Bangun masa depanmu.
+                </span>
+              </h1>
+
+              {/* Description */}
+              <p className="mt-5 max-w-lg text-sm leading-7 text-slate-600 sm:text-base">
+                Dengan SkillMap, kamu bisa mengetahui
+                posisi kompetensi saat ini dan menentukan
+                fokus pengembangan berdasarkan target
+                karier.
+              </p>
+
+              {/* Feature badges */}
+              <div className="mt-7 flex flex-wrap gap-3">
+                <InfoBadge
+                  label="Ukur"
+                  value="Kompetensi"
+                  variant="blue"
+                />
+
+                <InfoBadge
+                  label="Temukan"
+                  value="Skill Gap"
+                  variant="white"
+                />
+
+                <InfoBadge
+                  label="Bangun"
+                  value="Roadmap"
+                  variant="yellow"
+                />
+              </div>
+
+              {/* Benefits */}
+              <div className="mt-8 space-y-3">
+                <RegisterBenefit
+                  number="01"
+                  title="Ukur Kompetensi"
+                  description="Mulai dengan Skill Check berbasis kompetensi."
+                />
+
+                <RegisterBenefit
+                  number="02"
+                  title="Temukan Skill Gap"
+                  description="Ketahui skill yang sudah kuat dan yang masih perlu dikembangkan."
+                />
+
+                <RegisterBenefit
+                  number="03"
+                  title="Bangun Roadmap"
+                  description="Dapatkan fokus pengembangan yang lebih terarah."
+                />
+              </div>
+
+              {/* Free access badge */}
+              <div className="mt-7 inline-flex items-center gap-2 rounded-xl border border-yellow-200 bg-yellow-50 px-4 py-3 text-xs font-medium text-yellow-700">
+                <Sparkles size={15} />
+                Mulai dari fitur inti secara gratis
+              </div>
+            </div>
+          </section>
+
+          {/* REGISTER CARD */}
+          <section className="w-full">
+            <div className="skillmap-card mx-auto w-full max-w-md p-6 sm:p-8">
+              
+              {/* Header */}
               <div className="mb-7">
                 <div className="mb-5 flex h-12 w-12 items-center justify-center rounded-2xl bg-blue-50 text-blue-600">
                   <UserRound size={22} />
@@ -119,9 +243,9 @@ export default function RegisterPage() {
                   Get Started
                 </p>
 
-                <h1 className="mt-2 text-3xl font-bold tracking-tight text-slate-950">
+                <h2 className="mt-2 text-3xl font-bold tracking-tight text-slate-950">
                   Daftar SkillMap
-                </h1>
+                </h2>
 
                 <p className="mt-2 text-sm leading-6 text-slate-500">
                   Buat akun untuk mulai memetakan dan
@@ -129,10 +253,12 @@ export default function RegisterPage() {
                 </p>
               </div>
 
+              {/* Form */}
               <form
                 onSubmit={handleRegister}
                 className="space-y-5"
               >
+                
                 {/* Name */}
                 <div>
                   <label
@@ -222,7 +348,7 @@ export default function RegisterPage() {
 
                 {/* Error */}
                 {errorMessage && (
-                  <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-600">
+                  <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm leading-5 text-red-600">
                     {errorMessage}
                   </div>
                 )}
@@ -233,9 +359,13 @@ export default function RegisterPage() {
                   disabled={loading}
                   className="skillmap-button flex w-full items-center justify-center gap-2 rounded-xl bg-blue-600 px-5 py-3.5 text-sm font-semibold text-white shadow-lg shadow-blue-600/20 transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
                 >
-                  {loading ? "Membuat akun..." : "Buat Akun"}
+                  {loading
+                    ? "Membuat akun..."
+                    : "Buat Akun"}
 
-                  {!loading && <ArrowRight size={17} />}
+                  {!loading && (
+                    <ArrowRight size={17} />
+                  )}
                 </button>
               </form>
 
@@ -253,6 +383,7 @@ export default function RegisterPage() {
                 </Link>
               </div>
 
+              {/* Back */}
               <div className="mt-5 text-center">
                 <Link
                   href="/"
@@ -262,53 +393,7 @@ export default function RegisterPage() {
                 </Link>
               </div>
             </div>
-          </div>
-
-          {/* Right information */}
-          <div className="order-1 hidden lg:block lg:order-2">
-            <div className="skillmap-badge-blue mb-5 w-fit px-3 py-1.5 text-xs font-semibold">
-              <Sparkles size={14} />
-              Mulai perjalananmu
-            </div>
-
-            <h2 className="max-w-md text-4xl font-bold leading-tight tracking-tight text-slate-950">
-              Kenali skillmu.
-              <span className="block text-blue-600">
-                Bangun masa depanmu.
-              </span>
-            </h2>
-
-            <p className="mt-5 max-w-md text-sm leading-7 text-slate-600">
-              Dengan SkillMap, kamu bisa mengetahui posisi
-              kompetensi saat ini dan menentukan fokus
-              pengembangan berdasarkan target karier.
-            </p>
-
-            <div className="mt-8 space-y-3">
-              <RegisterBenefit
-                number="01"
-                title="Ukur Kompetensi"
-                description="Mulai dengan Skill Check berbasis kompetensi."
-              />
-
-              <RegisterBenefit
-                number="02"
-                title="Temukan Skill Gap"
-                description="Ketahui skill yang sudah kuat dan yang masih perlu dikembangkan."
-              />
-
-              <RegisterBenefit
-                number="03"
-                title="Bangun Roadmap"
-                description="Dapatkan fokus pengembangan yang lebih terarah."
-              />
-            </div>
-
-            <div className="mt-7 inline-flex items-center gap-2 rounded-xl border border-yellow-200 bg-yellow-50 px-4 py-3 text-xs font-medium text-yellow-700">
-              <Sparkles size={15} />
-              Mulai dari fitur inti secara gratis
-            </div>
-          </div>
+          </section>
         </div>
       </div>
     </main>
@@ -325,7 +410,7 @@ function RegisterBenefit({
   description: string;
 }) {
   return (
-    <div className="skillmap-card flex max-w-md items-start gap-4 p-4">
+    <div className="flex w-full max-w-xl items-start gap-4 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
       <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-blue-50 text-xs font-bold text-blue-600">
         {number}
       </div>

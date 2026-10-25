@@ -2,381 +2,444 @@
 
 import {
   BarChart3,
-  ClipboardCheck,
-  FolderKanban,
-  History,
+  BookOpenCheck,
+  BriefcaseBusiness,
+  ChevronRight,
+  Crown,
   Home,
   LogOut,
   Map,
+  Menu,
   Settings,
+  Target,
   UserRound,
-  Crown,
+  X,
 } from "lucide-react";
-import { useEffect, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
 
 import { supabase } from "@/lib/supabase";
 import { isPremiumUser } from "@/lib/subscription";
 
 type UserProfile = {
   name: string | null;
+  email: string | null;
   profile_photo_url: string | null;
 };
 
+const mainMenus = [
+  {
+    label: "Dashboard",
+    href: "/dashboard",
+    icon: Home,
+  },
+  {
+    label: "Skill Check",
+    href: "/skillcheck",
+    icon: BookOpenCheck,
+  },
+  {
+    label: "Skill Profile",
+    href: "/skillprofile",
+    icon: UserRound,
+  },
+  {
+    label: "Skill Gap",
+    href: "/skillgap",
+    icon: BarChart3,
+  },
+  {
+    label: "Roadmap",
+    href: "/roadmap",
+    icon: Map,
+  },
+  {
+    label: "Progress & History",
+    href: "/progress",
+    icon: Target,
+  },
+  {
+    label: "Portfolio & Pengalaman",
+    href: "/portfolio",
+    icon: BriefcaseBusiness,
+  },
+];
+
 export default function Sidebar() {
-  const router = useRouter();
   const pathname = usePathname();
+  const router = useRouter();
 
-  const [userProfile, setUserProfile] =
-    useState<UserProfile>({
-      name: "SkillMap User",
-      profile_photo_url: null,
-    });
+  const [user, setUser] =
+    useState<UserProfile | null>(null);
 
-  const [isPremium, setIsPremium] =
+  const [premium, setPremium] =
+    useState(false);
+
+  const [mobileOpen, setMobileOpen] =
     useState(false);
 
   useEffect(() => {
-    async function loadUserData() {
+    async function loadUser() {
       try {
         const {
-          data: { user },
+          data: { user: authUser },
         } = await supabase.auth.getUser();
 
-        if (!user) return;
-
-        /* =========================
-           USER PROFILE
-        ========================= */
-
-        const {
-          data: profile,
-          error: profileError,
-        } = await supabase
-          .from("users")
-          .select(
-            "name, profile_photo_url"
-          )
-          .eq("id", user.id)
-          .maybeSingle();
-
-        if (profileError) {
-          console.error(
-            "Gagal mengambil profile:",
-            profileError
-          );
+        if (!authUser) {
+          return;
         }
+
+        const { data: profile } =
+          await supabase
+            .from("users")
+            .select(
+              "name, email, profile_photo_url"
+            )
+            .eq("id", authUser.id)
+            .maybeSingle();
 
         if (profile) {
-          setUserProfile({
-            name:
-              profile.name ??
-              user.email ??
-              "SkillMap User",
-
-            profile_photo_url:
-              profile.profile_photo_url,
-          });
-        } else {
-          setUserProfile({
-            name:
-              user.email ??
-              "SkillMap User",
-            profile_photo_url: null,
-          });
+          setUser(profile);
         }
 
-        /* =========================
-           SUBSCRIPTION
-        ========================= */
-
-        const premium =
+        const premiumStatus =
           await isPremiumUser();
 
-        setIsPremium(premium);
+        setPremium(premiumStatus);
       } catch (error) {
         console.error(
-          "Gagal memuat data sidebar:",
+          "Gagal memuat sidebar:",
           error
         );
       }
     }
 
-    loadUserData();
-  }, []);
+    loadUser();
+  }, [pathname]);
+
+  useEffect(() => {
+    setMobileOpen(false);
+  }, [pathname]);
 
   async function handleLogout() {
     await supabase.auth.signOut();
-    router.push("/");
+    router.push("/login");
   }
 
-  const menuItems = [
-    {
-      label: "Dashboard",
-      path: "/dashboard",
-      icon: Home,
-    },
-    {
-      label: "Skill Check",
-      path: "/skillcheck",
-      icon: ClipboardCheck,
-    },
-    {
-      label: "Skill Profile",
-      path: "/skillprofile",
-      icon: UserRound,
-    },
-    {
-      label: "Skill Gap",
-      path: "/skillgap",
-      icon: BarChart3,
-    },
-    {
-      label: "Roadmap",
-      path: "/roadmap",
-      icon: Map,
-    },
-    {
-      label: "Progress & History",
-      path: "/progress",
-      icon: History,
-    },
-    {
-      label: "Portofolio & Pengalaman",
-      path: "/portofolio",
-      icon: FolderKanban,
-    },
-  ];
+  function isActive(href: string) {
+    if (href === "/dashboard") {
+      return pathname === "/dashboard";
+    }
 
-  const isUpgradeActive =
-    pathname === "/upgrade" ||
-    pathname.startsWith("/upgrade/");
+    return (
+      pathname === href ||
+      pathname.startsWith(`${href}/`)
+    );
+  }
+
+  const displayName =
+    user?.name?.trim() || "User";
+
+  const initial =
+    displayName.charAt(0).toUpperCase();
 
   return (
-    <aside className="fixed left-0 top-0 z-40 flex h-screen w-64 flex-col border-r border-slate-200 bg-white px-4 py-5 shadow-[2px_0_18px_rgba(15,23,42,0.04)]">
-
+    <>
       {/* =====================================================
-          LOGO
+          MOBILE TOP BAR
       ===================================================== */}
 
-      <button
-        type="button"
-        onClick={() =>
-          router.push("/dashboard")
-        }
-        className="mb-6 flex items-center gap-2 px-2 text-left"
-      >
-        <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-blue-600 text-sm font-bold text-white shadow-sm">
-          S
-        </div>
+      <header className="fixed inset-x-0 top-0 z-50 flex h-16 items-center justify-between border-b border-slate-200 bg-white px-4 lg:hidden">
+        <button
+          type="button"
+          onClick={() =>
+            setMobileOpen(true)
+          }
+          className="flex h-10 w-10 items-center justify-center rounded-xl text-slate-600 transition hover:bg-slate-100"
+          aria-label="Buka menu"
+        >
+          <Menu size={22} />
+        </button>
 
-        <span className="text-lg font-bold tracking-tight text-slate-900">
-          Skill<span className="text-blue-600">
-            Map
-          </span>
-        </span>
-      </button>
-
-      {/* =====================================================
-          USER PROFILE
-      ===================================================== */}
-
-      <div className="mb-6 rounded-xl border border-slate-100 bg-slate-50 p-3">
-
-        <div className="flex items-center gap-3">
-
-          {/* FOTO / INITIAL */}
-
-          {userProfile.profile_photo_url ? (
-            <img
-              src={
-                userProfile.profile_photo_url
-              }
-              alt="Foto profil"
-              className="h-9 w-9 shrink-0 rounded-full object-cover"
-            />
-          ) : (
-            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-blue-100 text-sm font-semibold text-blue-700">
-              {(
-                userProfile.name?.charAt(
-                  0
-                ) ?? "U"
-              ).toUpperCase()}
-            </div>
-          )}
-
-          {/* USER INFO */}
-
-          <div className="min-w-0">
-
-            <p className="truncate text-sm font-semibold text-slate-900">
-              {userProfile.name}
-            </p>
-
-            <div className="mt-0.5 flex items-center gap-1.5">
-
-              {isPremium && (
-                <Crown
-                  size={11}
-                  className="text-yellow-500"
-                />
-              )}
-
-              <p
-                className={`text-xs font-medium ${
-                  isPremium
-                    ? "text-yellow-600"
-                    : "text-slate-500"
-                }`}
-              >
-                {isPremium
-                  ? "Premium"
-                  : "Freemium"}
-              </p>
-
-            </div>
-
+        <button
+          type="button"
+          onClick={() =>
+            router.push("/dashboard")
+          }
+          className="flex items-center gap-2"
+        >
+          <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-blue-600 text-sm font-bold text-white shadow-sm">
+            S
           </div>
 
-        </div>
+          <span className="text-lg font-bold tracking-tight text-slate-900">
+            Skill
+            <span className="text-blue-600">
+              Map
+            </span>
+          </span>
+        </button>
 
-      </div>
+        <button
+          type="button"
+          onClick={() =>
+            setMobileOpen(true)
+          }
+          className="flex h-10 w-10 items-center justify-center overflow-hidden rounded-full bg-blue-50 text-sm font-bold text-blue-600"
+          aria-label="Buka profil"
+        >
+          {user?.profile_photo_url ? (
+            <img
+              src={user.profile_photo_url}
+              alt={displayName}
+              className="h-full w-full object-cover"
+            />
+          ) : (
+            initial
+          )}
+        </button>
+      </header>
 
       {/* =====================================================
-          MAIN NAVIGATION
+          MOBILE OVERLAY
       ===================================================== */}
 
-      <nav className="space-y-1">
+      {mobileOpen && (
+        <button
+          type="button"
+          aria-label="Tutup menu"
+          onClick={() =>
+            setMobileOpen(false)
+          }
+          className="fixed inset-0 z-[60] bg-slate-950/35 backdrop-blur-[2px] lg:hidden"
+        />
+      )}
 
-        {menuItems.map((item) => {
-          const Icon = item.icon;
+      {/* =====================================================
+          SIDEBAR
+      ===================================================== */}
 
-          const isActive =
-            pathname === item.path ||
-            pathname.startsWith(
-              `${item.path}/`
-            );
+      <aside
+        className={`fixed inset-y-0 left-0 z-[70] flex w-[280px] flex-col border-r border-slate-200 bg-white transition-transform duration-300 lg:w-64 lg:translate-x-0 ${
+          mobileOpen
+            ? "translate-x-0"
+            : "-translate-x-full"
+        }`}
+      >
+        {/* ===================================================
+            LOGO
+        =================================================== */}
 
-          return (
+        <div className="flex h-20 shrink-0 items-center justify-between px-5">
+          <button
+            type="button"
+            onClick={() =>
+              router.push("/dashboard")
+            }
+            className="flex items-center gap-3"
+          >
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-600 text-sm font-bold text-white shadow-md shadow-blue-600/20">
+              S
+            </div>
+
+            <span className="text-xl font-bold tracking-tight text-slate-900">
+              Skill
+              <span className="text-blue-600">
+                Map
+              </span>
+            </span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() =>
+              setMobileOpen(false)
+            }
+            className="flex h-9 w-9 items-center justify-center rounded-lg text-slate-400 hover:bg-slate-100 hover:text-slate-700 lg:hidden"
+            aria-label="Tutup menu"
+          >
+            <X size={20} />
+          </button>
+        </div>
+
+        {/* ===================================================
+            USER PROFILE
+        =================================================== */}
+
+        <div className="px-4">
+          <div className="flex items-center gap-3 rounded-2xl border border-slate-100 bg-slate-50 p-3">
+            <div className="flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-full bg-blue-100 text-sm font-bold text-blue-600">
+              {user?.profile_photo_url ? (
+                <img
+                  src={user.profile_photo_url}
+                  alt={displayName}
+                  className="h-full w-full object-cover"
+                />
+              ) : (
+                initial
+              )}
+            </div>
+
+            <div className="min-w-0">
+              <p className="truncate text-sm font-bold text-slate-900">
+                {displayName}
+              </p>
+
+              <div className="mt-0.5 flex items-center gap-1.5">
+                {premium && (
+                  <Crown
+                    size={13}
+                    className="text-yellow-500"
+                  />
+                )}
+
+                <span
+                  className={`text-xs font-medium ${
+                    premium
+                      ? "text-yellow-600"
+                      : "text-slate-500"
+                  }`}
+                >
+                  {premium
+                    ? "Premium"
+                    : "Freemium"}
+                </span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* ===================================================
+            NAVIGATION
+        =================================================== */}
+
+        <nav className="mt-6 flex-1 overflow-y-auto px-3 pb-4">
+          <div className="space-y-1">
+            {mainMenus.map((item) => {
+              const Icon = item.icon;
+              const active = isActive(
+                item.href
+              );
+
+              return (
+                <button
+                  key={item.href}
+                  type="button"
+                  onClick={() =>
+                    router.push(item.href)
+                  }
+                  className={`group flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left text-sm font-medium transition ${
+                    active
+                      ? "bg-blue-50 text-blue-700 shadow-sm"
+                      : "text-slate-600 hover:bg-slate-50 hover:text-slate-900"
+                  }`}
+                >
+                  <Icon
+                    size={19}
+                    strokeWidth={
+                      active ? 2.2 : 1.8
+                    }
+                    className={
+                      active
+                        ? "text-blue-600"
+                        : "text-slate-400 group-hover:text-slate-600"
+                    }
+                  />
+
+                  <span className="min-w-0 flex-1 truncate">
+                    {item.label}
+                  </span>
+
+                  {active && (
+                    <ChevronRight
+                      size={15}
+                      className="text-blue-400"
+                    />
+                  )}
+                </button>
+              );
+            })}
+          </div>
+
+          {/* =================================================
+              UPGRADE
+          ================================================= */}
+
+          <div className="my-5 border-t border-slate-100 pt-5">
             <button
-              key={item.label}
               type="button"
               onClick={() =>
-                router.push(item.path)
+                router.push("/upgrade")
               }
-              className={`group flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm transition-all duration-200 ${
-                isActive
-                  ? "bg-blue-50 font-semibold text-blue-700 shadow-sm"
-                  : "text-slate-600 hover:-translate-y-[1px] hover:bg-blue-50 hover:text-blue-700"
+              className={`group flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left text-sm font-semibold transition ${
+                pathname === "/upgrade"
+                  ? "bg-yellow-50 text-yellow-700"
+                  : "text-yellow-600 hover:bg-yellow-50"
               }`}
             >
-              <Icon
-                size={18}
-                strokeWidth={
-                  isActive ? 2.3 : 1.9
-                }
+              <Crown
+                size={19}
+                strokeWidth={1.9}
+              />
+
+              <span className="flex-1">
+                Tingkatkan Paket
+              </span>
+
+              <ChevronRight
+                size={15}
+                className="opacity-60"
+              />
+            </button>
+          </div>
+
+          {/* =================================================
+              BOTTOM MENU
+          ================================================= */}
+
+          <div className="border-t border-slate-100 pt-5">
+            <button
+              type="button"
+              onClick={() =>
+                router.push("/settings")
+              }
+              className={`group flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left text-sm font-medium transition ${
+                isActive("/settings")
+                  ? "bg-blue-50 text-blue-700"
+                  : "text-slate-600 hover:bg-slate-50 hover:text-slate-900"
+              }`}
+            >
+              <Settings
+                size={19}
+                strokeWidth={1.8}
                 className={
-                  isActive
+                  isActive("/settings")
                     ? "text-blue-600"
-                    : "text-slate-400 transition-colors group-hover:text-blue-600"
+                    : "text-slate-400 group-hover:text-slate-600"
                 }
               />
 
-              <span>{item.label}</span>
+              <span className="flex-1">
+                Settings
+              </span>
             </button>
-          );
-        })}
 
-        {/* =================================================
-            TINGKATKAN PAKET
-        ================================================= */}
+            <button
+              type="button"
+              onClick={handleLogout}
+              className="group mt-1 flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left text-sm font-medium text-slate-600 transition hover:bg-red-50 hover:text-red-600"
+            >
+              <LogOut
+                size={19}
+                strokeWidth={1.8}
+                className="text-slate-400 group-hover:text-red-500"
+              />
 
-        <button
-          type="button"
-          onClick={() =>
-            router.push("/upgrade")
-          }
-          className={`group mt-2 flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm transition-all duration-200 ${
-            isUpgradeActive
-              ? "bg-yellow-50 font-semibold text-yellow-700 shadow-sm"
-              : "text-yellow-700 hover:-translate-y-[1px] hover:bg-yellow-50"
-          }`}
-        >
-          <Crown
-            size={18}
-            strokeWidth={
-              isUpgradeActive
-                ? 2.3
-                : 1.9
-            }
-            className={
-              isUpgradeActive
-                ? "text-yellow-600"
-                : "text-yellow-500 transition-colors group-hover:text-yellow-600"
-            }
-          />
-
-          <span>
-            Tingkatkan Paket
-          </span>
-        </button>
-
-      </nav>
-
-      {/* =====================================================
-          BOTTOM
-      ===================================================== */}
-
-      <div className="mt-auto border-t border-slate-200 pt-4">
-
-        {/* SETTINGS */}
-
-        <button
-          type="button"
-          onClick={() =>
-            router.push("/settings")
-          }
-          className={`group flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm transition-all duration-200 ${
-            pathname === "/settings"
-              ? "bg-blue-50 font-semibold text-blue-700"
-              : "text-slate-600 hover:-translate-y-[1px] hover:bg-blue-50 hover:text-blue-700"
-          }`}
-        >
-          <Settings
-            size={18}
-            strokeWidth={
-              pathname === "/settings"
-                ? 2.3
-                : 1.9
-            }
-            className={
-              pathname === "/settings"
-                ? "text-blue-600"
-                : "text-slate-400 group-hover:text-blue-600"
-            }
-          />
-
-          <span>Settings</span>
-        </button>
-
-        {/* LOGOUT */}
-
-        <button
-          type="button"
-          onClick={handleLogout}
-          className="group mt-1 flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm text-slate-500 transition-all duration-200 hover:-translate-y-[1px] hover:bg-red-50 hover:text-red-600"
-        >
-          <LogOut
-            size={18}
-            strokeWidth={1.9}
-            className="text-slate-400 group-hover:text-red-500"
-          />
-
-          <span>Logout</span>
-        </button>
-
-      </div>
-
-    </aside>
+              <span>Logout</span>
+            </button>
+          </div>
+        </nav>
+      </aside>
+    </>
   );
 }

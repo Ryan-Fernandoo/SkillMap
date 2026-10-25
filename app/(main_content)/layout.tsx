@@ -10,8 +10,8 @@ export default function MainContentLayout({
     <div className="min-h-screen bg-[#f7faff]">
       <Sidebar />
 
-      <main className="skillmap-main-shell ml-64 min-h-screen">
-        <div className="skillmap-page relative mx-auto min-h-screen w-full max-w-[1500px] px-8 py-8 xl:px-10">
+      <main className="min-h-screen lg:ml-64">
+        <div className="relative mx-auto min-h-screen w-full max-w-[1500px] px-4 pb-8 pt-20 sm:px-6 lg:px-8 lg:py-8 xl:px-10">
           <Suspense
             fallback={
               <div className="flex min-h-[60vh] items-center justify-center">
