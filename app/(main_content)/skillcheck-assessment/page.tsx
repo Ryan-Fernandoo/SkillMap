@@ -34,16 +34,6 @@ type CareerSkill = {
 
 type AnswerMap = Record<string, string>;
 
-/**
- * Normalisasi pilihan jawaban.
- *
- * Contoh:
- * "C"      -> "C"
- * " C "    -> "C"
- * "c"      -> "C"
- * "C   "   -> "C"
- * " C \n"  -> "C"
- */
 function normalizeOption(value: unknown): string {
   return String(value ?? "")
     .replace(/\s+/g, "")
@@ -51,9 +41,6 @@ function normalizeOption(value: unknown): string {
     .toUpperCase();
 }
 
-/**
- * Normalisasi ID.
- */
 function normalizeId(value: unknown): string {
   return String(value ?? "").trim();
 }
@@ -215,12 +202,6 @@ function SkillCheckAssessmentContent() {
 
         /* =========================
            QUESTION KEYS
-           
-           PENTING:
-           Ambil SEMUA question_keys.
-           Jangan gunakan .in(question_id, ...)
-           karena sebelumnya bagian ini menyebabkan
-           frontend menganggap semua key tidak ada.
         ========================= */
 
         const {
@@ -239,19 +220,9 @@ function SkillCheckAssessmentContent() {
           setErrorMessage(
             "Kunci jawaban assessment gagal dimuat."
           );
-
           setLoading(false);
           return;
         }
-
-        console.log(
-          "QUESTION KEYS DARI DATABASE:",
-          keyData
-        );
-
-        /* =========================
-           NORMALIZE QUESTION KEYS
-        ========================= */
 
         const loadedKeys: QuestionKey[] = (keyData ?? []).map(
           (item) => ({
@@ -259,15 +230,6 @@ function SkillCheckAssessmentContent() {
             correct_option: normalizeOption(item.correct_option),
           })
         );
-
-        console.log(
-          "LOADED QUESTION KEYS:",
-          loadedKeys
-        );
-
-        /* =========================
-           VALIDASI QUESTION KEYS
-        ========================= */
 
         if (loadedKeys.length === 0) {
           console.error(
@@ -277,18 +239,12 @@ function SkillCheckAssessmentContent() {
           setErrorMessage(
             "Kunci jawaban belum tersedia di database."
           );
-
           setLoading(false);
           return;
         }
 
         /* =========================
            KEY MAP
-           
-           Contoh:
-           Q001 -> C
-           Q002 -> A
-           Q003 -> B
         ========================= */
 
         const keyMap = new Map<string, string>();
@@ -301,24 +257,6 @@ function SkillCheckAssessmentContent() {
 
           keyMap.set(questionId, correctOption);
         });
-
-        console.log(
-          "KEY MAP:",
-          Array.from(keyMap.entries())
-        );
-
-        /* =========================
-           QUESTION IDS
-        ========================= */
-
-        const questionIds = loadedQuestions.map((question) =>
-          normalizeId(question.id)
-        );
-
-        console.log(
-          "QUESTION IDS:",
-          questionIds
-        );
 
         /* =========================
            CHECK MISSING KEYS
@@ -341,7 +279,6 @@ function SkillCheckAssessmentContent() {
           setErrorMessage(
             `Ada ${missingKeys.length} soal yang belum memiliki kunci jawaban.`
           );
-
           setLoading(false);
           return;
         }
@@ -366,22 +303,14 @@ function SkillCheckAssessmentContent() {
           setErrorMessage(
             "Ada kunci jawaban yang tidak valid. Pastikan hanya A, B, C, atau D."
           );
-
           setLoading(false);
           return;
         }
 
-        /* =========================
-           SAVE QUESTION KEYS
-        ========================= */
-
         setQuestionKeys(loadedKeys);
         setLoading(false);
       } catch (error) {
-        console.error(
-          "Load assessment error:",
-          error
-        );
+        console.error("Load assessment error:", error);
 
         setErrorMessage(
           "Terjadi kesalahan saat memuat assessment."
@@ -415,10 +344,6 @@ function SkillCheckAssessmentContent() {
 
   const isLastQuestion =
     currentIndex === questions.length - 1;
-
-  /* =========================
-     OPTIONS
-  ========================= */
 
   const options = useMemo(() => {
     if (!currentQuestion) {
@@ -559,11 +484,6 @@ function SkillCheckAssessmentContent() {
         );
       });
 
-      console.log(
-        "KEY MAP SAAT SUBMIT:",
-        Array.from(keyMap.entries())
-      );
-
       /* =========================
          VALIDATE ALL KEYS
       ========================= */
@@ -653,8 +573,6 @@ function SkillCheckAssessmentContent() {
 
       /* =========================
          CALCULATE ANSWERS
-         
-         Semua scoring dihitung SATU KALI.
       ========================= */
 
       const evaluatedAnswers = questions.map(
@@ -685,20 +603,6 @@ function SkillCheckAssessmentContent() {
             score,
           };
         }
-      );
-
-      /* =========================
-         DEBUG SCORING
-      ========================= */
-
-      console.table(
-        evaluatedAnswers.map((item) => ({
-          question: item.questionId,
-          selected: item.selectedOption,
-          correct: item.correctOption,
-          isCorrect: item.isCorrect,
-          score: item.score,
-        }))
       );
 
       /* =========================
@@ -812,16 +716,6 @@ function SkillCheckAssessmentContent() {
         );
       }
 
-      console.table(
-        skillResultRows.map((item) => ({
-          skill: item.skill_id,
-          score: item.score,
-          target: item.target_score,
-          gap: item.gap,
-          status: item.status,
-        }))
-      );
-
       /* =========================
          SAVE SKILL RESULTS
       ========================= */
@@ -888,11 +782,19 @@ function SkillCheckAssessmentContent() {
 
   if (loading) {
     return (
-      <main className="min-h-screen bg-gray-50 px-6 py-10 dark:bg-gray-950 dark:text-white">
-        <div className="mx-auto max-w-3xl">
-          <p className="text-sm text-gray-500">
-            Memuat assessment...
-          </p>
+      <main className="min-h-screen bg-[#f7faff] px-4 py-6 sm:px-6 sm:py-10">
+        <div className="mx-auto flex min-h-[70vh] max-w-3xl items-center justify-center">
+          <div className="w-full rounded-3xl border border-slate-200 bg-white p-8 text-center shadow-sm">
+            <div className="mx-auto mb-4 h-10 w-10 animate-spin rounded-full border-4 border-slate-200 border-t-blue-600" />
+
+            <p className="text-sm font-medium text-slate-700">
+              Memuat assessment...
+            </p>
+
+            <p className="mt-1 text-xs text-slate-400">
+              Menyiapkan soal untukmu
+            </p>
+          </div>
         </div>
       </main>
     );
@@ -907,30 +809,35 @@ function SkillCheckAssessmentContent() {
     questions.length === 0
   ) {
     return (
-      <main className="min-h-screen bg-gray-50 px-6 py-10 dark:bg-gray-950 dark:text-white">
+      <main className="min-h-screen bg-[#f7faff] px-4 py-6 sm:px-6 sm:py-10">
         <div className="mx-auto max-w-3xl">
           <button
             type="button"
             onClick={handleBack}
-            className="mb-6 text-sm text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white"
+            className="mb-6 inline-flex items-center gap-2 text-sm font-medium text-slate-500 transition hover:text-slate-900"
           >
-            ← Kembali ke Setup
+            <span>←</span>
+            <span>Kembali ke Setup</span>
           </button>
 
-          <div className="rounded-2xl border bg-white p-8 dark:border-gray-800 dark:bg-gray-900">
-            <h1 className="text-2xl font-bold">
+          <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm sm:p-8">
+            <div className="mb-5 flex h-12 w-12 items-center justify-center rounded-2xl bg-red-50 text-red-600">
+              !
+            </div>
+
+            <h1 className="text-2xl font-bold tracking-tight text-slate-900">
               Assessment Belum Tersedia
             </h1>
 
-            <p className="mt-3 text-gray-500 dark:text-gray-400">
-              Belum ada soal yang tersedia
-              untuk career ini.
+            <p className="mt-3 text-sm leading-6 text-slate-500">
+              Belum ada soal yang tersedia untuk
+              career ini.
             </p>
 
             {errorMessage && (
-              <p className="mt-4 text-sm text-red-600">
+              <div className="mt-5 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm leading-6 text-red-600">
                 {errorMessage}
-              </p>
+              </div>
             )}
           </div>
         </div>
@@ -943,221 +850,318 @@ function SkillCheckAssessmentContent() {
   ========================= */
 
   return (
-    <main className="min-h-screen bg-gray-50 px-6 py-10 dark:bg-gray-950 dark:text-white">
-      <div className="mx-auto max-w-3xl">
+    <main className="min-h-screen bg-[#f7faff] px-4 py-5 sm:px-6 sm:py-8 lg:px-8">
+      <div className="mx-auto w-full max-w-4xl">
 
         {/* HEADER */}
 
-        <div className="mb-8">
+        <div className="mb-6 sm:mb-8">
           <button
             type="button"
             onClick={handleBack}
-            className="mb-5 text-sm text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white"
+            className="mb-5 inline-flex items-center gap-2 text-sm font-medium text-slate-500 transition hover:text-slate-900"
           >
-            ← Kembali ke Setup
+            <span>←</span>
+            <span>Kembali ke Setup</span>
           </button>
 
-          <p className="text-sm font-medium text-gray-500">
-            Skill Check / Assessment
-          </p>
+          <div>
+            <div className="mb-3 inline-flex items-center rounded-full bg-blue-50 px-3 py-1.5 text-xs font-semibold text-blue-700">
+              Skill Check
+            </div>
 
-          <h1 className="mt-2 text-3xl font-bold">
-            Pemetaan Kompetensi
-          </h1>
+            <h1 className="text-2xl font-bold tracking-tight text-slate-900 sm:text-3xl">
+              Pemetaan Kompetensi
+            </h1>
 
-          <p className="mt-2 text-gray-600 dark:text-gray-400">
-            Jawab setiap soal sesuai dengan
-            kemampuanmu saat ini.
-          </p>
-        </div>
-
-        {/* CAREER */}
-
-        <div className="mb-5 rounded-xl border bg-white p-5 dark:border-gray-800 dark:bg-gray-900">
-          <p className="text-xs uppercase tracking-wide text-gray-500">
-            Target Career
-          </p>
-
-          <p className="mt-1 font-semibold">
-            {career?.name}
-          </p>
-
-          <p className="text-sm text-gray-500">
-            {career?.field} · {career?.level}
-          </p>
-        </div>
-
-        {/* PROGRESS */}
-
-        <div className="mb-5 rounded-xl border bg-white p-5 dark:border-gray-800 dark:bg-gray-900">
-          <div className="flex items-center justify-between">
-            <span className="text-sm font-medium">
-              Soal {currentIndex + 1} dari{" "}
-              {questions.length}
-            </span>
-
-            <span className="text-sm text-gray-500">
-              {progress}%
-            </span>
+            <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-500 sm:text-base">
+              Jawab setiap soal sesuai dengan
+              kemampuanmu saat ini. Tidak perlu
+              mencari jawaban yang paling ideal.
+            </p>
           </div>
-
-          <div className="mt-3 h-2 overflow-hidden rounded-full bg-gray-200 dark:bg-gray-800">
-            <div
-              className="h-full rounded-full bg-black transition-all dark:bg-white"
-              style={{
-                width: `${progress}%`,
-              }}
-            />
-          </div>
-
-          <p className="mt-2 text-xs text-gray-500">
-            {answeredCount} dari{" "}
-            {questions.length} soal telah dijawab
-          </p>
         </div>
 
-        {/* QUESTION */}
+        {/* CAREER + PROGRESS */}
 
-        <div className="rounded-2xl border bg-white p-6 dark:border-gray-800 dark:bg-gray-900">
-          <div className="mb-6">
-            <p className="text-xs font-medium uppercase tracking-wide text-gray-500">
-              Question {currentIndex + 1}
+        <div className="mb-5 grid gap-4 lg:grid-cols-[1fr_1.4fr]">
+
+          {/* CAREER CARD */}
+
+          <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+            <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-slate-400">
+              Target Karier
             </p>
 
-            <h2 className="mt-3 text-lg font-semibold leading-relaxed">
-              {currentQuestion.question}
+            <h2 className="mt-2 text-lg font-bold text-slate-900">
+              {career?.name}
             </h2>
+
+            <p className="mt-1 text-sm text-slate-500">
+              {career?.field} · {career?.level}
+            </p>
+
+            <div className="mt-4 flex items-center gap-2">
+              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-blue-50 text-blue-600">
+                ✓
+              </div>
+
+              <p className="text-xs font-medium text-slate-500">
+                Assessment disesuaikan dengan
+                target kariermu
+              </p>
+            </div>
+          </div>
+
+          {/* PROGRESS CARD */}
+
+          <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-slate-400">
+                  Progress Assessment
+                </p>
+
+                <p className="mt-2 text-lg font-bold text-slate-900">
+                  Soal {currentIndex + 1}{" "}
+                  <span className="font-medium text-slate-400">
+                    dari {questions.length}
+                  </span>
+                </p>
+              </div>
+
+              <div className="rounded-xl bg-blue-50 px-3 py-2 text-sm font-bold text-blue-700">
+                {progress}%
+              </div>
+            </div>
+
+            <div className="mt-4 h-2 overflow-hidden rounded-full bg-slate-100">
+              <div
+                className="h-full rounded-full bg-blue-600 transition-all duration-300"
+                style={{
+                  width: `${progress}%`,
+                }}
+              />
+            </div>
+
+            <div className="mt-3 flex items-center justify-between gap-3 text-xs text-slate-400">
+              <span>
+                {answeredCount} soal sudah dijawab
+              </span>
+
+              <span>
+                {questions.length - answeredCount}{" "}
+                tersisa
+              </span>
+            </div>
+          </div>
+        </div>
+
+        {/* QUESTION CARD */}
+
+        <div className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm">
+
+          {/* QUESTION HEADER */}
+
+          <div className="border-b border-slate-100 px-5 py-5 sm:px-8 sm:py-7">
+            <div className="flex items-start gap-4">
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-slate-900 text-sm font-bold text-white">
+                {currentIndex + 1}
+              </div>
+
+              <div className="min-w-0">
+                <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-blue-600">
+                  Pertanyaan {currentIndex + 1}
+                </p>
+
+                <h2 className="mt-2 text-base font-semibold leading-7 text-slate-900 sm:text-lg sm:leading-8">
+                  {currentQuestion.question}
+                </h2>
+              </div>
+            </div>
           </div>
 
           {/* OPTIONS */}
 
-          <div className="space-y-3">
-            {options.map((option) => {
-              const selected =
-                currentAnswer === option.key;
+          <div className="px-5 py-5 sm:px-8 sm:py-7">
+            <p className="mb-4 text-xs font-medium text-slate-400">
+              Pilih satu jawaban yang paling sesuai.
+            </p>
 
-              return (
-                <button
-                  key={option.key}
-                  type="button"
-                  onClick={() =>
-                    handleSelectAnswer(option.key)
-                  }
-                  className={`flex w-full items-start gap-4 rounded-xl border p-4 text-left transition ${
-                    selected
-                      ? "border-black bg-gray-100 dark:border-white dark:bg-gray-800"
-                      : "border-gray-200 hover:bg-gray-50 dark:border-gray-700 dark:hover:bg-gray-800"
-                  }`}
-                >
-                  <span
-                    className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-sm font-semibold ${
+            <div className="grid gap-3">
+              {options.map((option) => {
+                const selected =
+                  currentAnswer === option.key;
+
+                return (
+                  <button
+                    key={option.key}
+                    type="button"
+                    onClick={() =>
+                      handleSelectAnswer(option.key)
+                    }
+                    className={`group flex w-full items-start gap-3 rounded-2xl border p-4 text-left transition-all duration-200 sm:gap-4 sm:p-5 ${
                       selected
-                        ? "bg-black text-white dark:bg-white dark:text-black"
-                        : "bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300"
+                        ? "border-blue-600 bg-blue-50 shadow-sm"
+                        : "border-slate-200 bg-white hover:border-blue-300 hover:bg-slate-50"
                     }`}
                   >
-                    {option.key}
-                  </span>
+                    <span
+                      className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-sm font-bold transition sm:h-10 sm:w-10 ${
+                        selected
+                          ? "bg-blue-600 text-white"
+                          : "bg-slate-100 text-slate-600 group-hover:bg-blue-50 group-hover:text-blue-600"
+                      }`}
+                    >
+                      {option.key}
+                    </span>
 
-                  <span className="pt-1 text-sm leading-relaxed">
-                    {option.value}
-                  </span>
-                </button>
-              );
-            })}
-          </div>
+                    <span
+                      className={`pt-1 text-sm leading-6 sm:text-[15px] ${
+                        selected
+                          ? "font-medium text-blue-950"
+                          : "text-slate-700"
+                      }`}
+                    >
+                      {option.value}
+                    </span>
 
-          {/* ERROR */}
-
-          {errorMessage && (
-            <div className="mt-5 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-600 dark:border-red-900 dark:bg-red-950">
-              {errorMessage}
+                    <span
+                      className={`ml-auto mt-1 flex h-5 w-5 shrink-0 items-center justify-center rounded-full border transition ${
+                        selected
+                          ? "border-blue-600 bg-blue-600 text-white"
+                          : "border-slate-300"
+                      }`}
+                    >
+                      {selected && (
+                        <span className="text-[11px]">
+                          ✓
+                        </span>
+                      )}
+                    </span>
+                  </button>
+                );
+              })}
             </div>
-          )}
 
-          {/* NAVIGATION */}
+            {/* ERROR */}
 
-          <div className="mt-8 flex items-center justify-between border-t pt-5 dark:border-gray-800">
-            <button
-              type="button"
-              onClick={handlePrevious}
-              disabled={
-                currentIndex === 0 ||
-                submitting
-              }
-              className="rounded-lg border px-5 py-3 text-sm font-medium transition hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-40 dark:border-gray-700 dark:hover:bg-gray-800"
-            >
-              Sebelumnya
-            </button>
+            {errorMessage && (
+              <div className="mt-5 flex items-start gap-3 rounded-2xl border border-red-200 bg-red-50 px-4 py-3.5 text-sm leading-6 text-red-600">
+                <span className="font-bold">!</span>
 
-            <button
-              type="button"
-              onClick={handleNext}
-              disabled={submitting}
-              className="rounded-lg bg-black px-5 py-3 text-sm font-medium text-white transition hover:bg-gray-800 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-white dark:text-black dark:hover:bg-gray-200"
-            >
-              {submitting
-                ? "Memproses..."
-                : isLastQuestion
-                ? "Selesaikan Assessment"
-                : "Soal Berikutnya →"}
-            </button>
+                <span>{errorMessage}</span>
+              </div>
+            )}
+
+            {/* NAVIGATION */}
+
+            <div className="mt-7 flex flex-col-reverse gap-3 border-t border-slate-100 pt-6 sm:flex-row sm:items-center sm:justify-between">
+              <button
+                type="button"
+                onClick={handlePrevious}
+                disabled={
+                  currentIndex === 0 ||
+                  submitting
+                }
+                className="w-full rounded-xl border border-slate-200 px-5 py-3 text-sm font-semibold text-slate-600 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40 sm:w-auto"
+              >
+                ← Sebelumnya
+              </button>
+
+              <button
+                type="button"
+                onClick={handleNext}
+                disabled={submitting}
+                className="w-full rounded-xl bg-blue-600 px-6 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto"
+              >
+                {submitting
+                  ? "Memproses..."
+                  : isLastQuestion
+                  ? "Selesaikan Assessment"
+                  : "Soal Berikutnya →"}
+              </button>
+            </div>
           </div>
         </div>
 
         {/* INFO */}
 
-        <div className="mt-5 grid gap-4 sm:grid-cols-3">
-          <div className="rounded-xl border bg-white p-4 dark:border-gray-800 dark:bg-gray-900">
-            <p className="font-medium">
+        <div className="mt-5 grid gap-3 sm:grid-cols-3">
+          <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+            <div className="mb-3 flex h-9 w-9 items-center justify-center rounded-xl bg-blue-50 text-sm font-bold text-blue-600">
+              01
+            </div>
+
+            <p className="text-sm font-semibold text-slate-900">
               Pemetaan Kompetensi
             </p>
 
-            <p className="mt-1 text-xs text-gray-500">
+            <p className="mt-1.5 text-xs leading-5 text-slate-500">
               Setiap soal terhubung dengan
               skill benchmark.
             </p>
           </div>
 
-          <div className="rounded-xl border bg-white p-4 dark:border-gray-800 dark:bg-gray-900">
-            <p className="font-medium">
+          <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+            <div className="mb-3 flex h-9 w-9 items-center justify-center rounded-xl bg-emerald-50 text-sm font-bold text-emerald-600">
+              02
+            </div>
+
+            <p className="text-sm font-semibold text-slate-900">
               Hasil per Skill
             </p>
 
-            <p className="mt-1 text-xs text-gray-500">
+            <p className="mt-1.5 text-xs leading-5 text-slate-500">
               Skor dihitung berdasarkan
               jawaban yang benar.
             </p>
           </div>
 
-          <div className="rounded-xl border bg-white p-4 dark:border-gray-800 dark:bg-gray-900">
-            <p className="font-medium">
+          <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+            <div className="mb-3 flex h-9 w-9 items-center justify-center rounded-xl bg-violet-50 text-sm font-bold text-violet-600">
+              03
+            </div>
+
+            <p className="text-sm font-semibold text-slate-900">
               Riwayat Pengukuran
             </p>
 
-            <p className="mt-1 text-xs text-gray-500">
+            <p className="mt-1.5 text-xs leading-5 text-slate-500">
               Hasil assessment tersimpan
               untuk dibandingkan.
             </p>
           </div>
         </div>
 
+        {/* FOOT NOTE */}
+
+        <p className="px-2 py-6 text-center text-xs leading-5 text-slate-400">
+          Jawablah berdasarkan kemampuanmu saat ini.
+          Tidak ada jawaban yang perlu dibuat-buat.
+        </p>
       </div>
     </main>
   );
-
-
 }
 
 export default function SkillCheckAssessmentPage() {
   return (
     <Suspense
       fallback={
-        <main className="min-h-screen bg-gray-50 px-6 py-10 dark:bg-gray-950 dark:text-white">
-          <div className="mx-auto max-w-3xl">
-            <p className="text-sm text-gray-500">
-              Memuat assessment...
-            </p>
+        <main className="min-h-screen bg-[#f7faff] px-4 py-6 sm:px-6 sm:py-10">
+          <div className="mx-auto flex min-h-[70vh] max-w-3xl items-center justify-center">
+            <div className="w-full rounded-3xl border border-slate-200 bg-white p-8 text-center shadow-sm">
+              <div className="mx-auto mb-4 h-10 w-10 animate-spin rounded-full border-4 border-slate-200 border-t-blue-600" />
+
+              <p className="text-sm font-medium text-slate-700">
+                Memuat assessment...
+              </p>
+
+              <p className="mt-1 text-xs text-slate-400">
+                Menyiapkan soal untukmu
+              </p>
+            </div>
           </div>
         </main>
       }

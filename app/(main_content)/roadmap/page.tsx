@@ -3,7 +3,6 @@
 import {
   ArrowRight,
   CheckCircle2,
-  Crown,
   Lock,
   Sparkles,
   Target,
@@ -84,7 +83,73 @@ type RoadmapCard = {
 };
 
 /* =========================================================
-   PAGE
+   HELPERS
+========================================================= */
+
+function getStatusLabel(status: string) {
+  const normalized = status.toLowerCase();
+
+  if (
+    normalized === "completed" ||
+    normalized === "complete" ||
+    normalized === "done"
+  ) {
+    return "Selesai";
+  }
+
+  if (
+    normalized === "in_progress" ||
+    normalized === "in-progress" ||
+    normalized === "progress"
+  ) {
+    return "Sedang Berjalan";
+  }
+
+  if (
+    normalized === "pending" ||
+    normalized === "not_started"
+  ) {
+    return "Belum Dimulai";
+  }
+
+  return status || "Belum Dimulai";
+}
+
+function getRecommendationLabel(
+  recommendationType: string
+) {
+  if (!recommendationType) {
+    return "";
+  }
+
+  const normalized =
+    recommendationType.toLowerCase();
+
+  if (
+    normalized.includes("course") ||
+    normalized.includes("learning")
+  ) {
+    return "Belajar";
+  }
+
+  if (
+    normalized.includes("project") ||
+    normalized.includes("practice")
+  ) {
+    return "Praktik";
+  }
+
+  if (
+    normalized.includes("experience")
+  ) {
+    return "Pengalaman";
+  }
+
+  return recommendationType;
+}
+
+/* =========================================================
+   PAGE CONTENT
 ========================================================= */
 
 function RoadmapPageContent() {
@@ -187,8 +252,14 @@ function RoadmapPageContent() {
             .select(
               "id, career_id, attempt_number, assessment_type, status, completed_at"
             )
-            .eq("user_id", user.id)
-            .eq("status", "completed")
+            .eq(
+              "user_id",
+              user.id
+            )
+            .eq(
+              "status",
+              "completed"
+            )
             .order("completed_at", {
               ascending: false,
             })
@@ -767,27 +838,21 @@ function RoadmapPageContent() {
 
   if (loading) {
     return (
-      <main className="min-h-screen bg-[#f7faff] px-6 py-8">
-
+      <main className="min-h-screen bg-[#f7faff] px-4 py-6 sm:px-6 sm:py-8">
         <div className="mx-auto max-w-6xl animate-pulse">
-
           <div className="h-5 w-36 rounded-full bg-slate-200" />
 
-          <div className="mt-5 h-10 w-80 rounded-xl bg-slate-200" />
+          <div className="mt-5 h-10 w-80 max-w-full rounded-xl bg-slate-200" />
 
           <div className="mt-3 h-4 w-[520px] max-w-full rounded-full bg-slate-100" />
 
           <div className="mt-8 h-32 rounded-[26px] bg-white" />
 
           <div className="mt-5 grid gap-4 md:grid-cols-2">
-
             <div className="h-56 rounded-[24px] bg-white" />
             <div className="h-56 rounded-[24px] bg-white" />
-
           </div>
-
         </div>
-
       </main>
     );
   }
@@ -798,12 +863,9 @@ function RoadmapPageContent() {
 
   if (errorMessage) {
     return (
-      <main className="min-h-screen bg-[#f7faff] px-6 py-8">
-
+      <main className="min-h-screen bg-[#f7faff] px-4 py-6 sm:px-6 sm:py-8">
         <div className="mx-auto max-w-6xl">
-
-          <div className="rounded-[26px] border border-red-100 bg-white p-8">
-
+          <div className="rounded-[26px] border border-red-100 bg-white p-6 sm:p-8">
             <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-red-50 text-red-500">
               <Target size={22} />
             </div>
@@ -823,16 +885,13 @@ function RoadmapPageContent() {
                   "/skillgap"
                 )
               }
-              className="mt-6 inline-flex items-center gap-2 rounded-xl bg-blue-600 px-5 py-3 text-sm font-semibold text-white"
+              className="mt-6 inline-flex items-center gap-2 rounded-xl bg-blue-600 px-5 py-3 text-sm font-semibold text-white transition hover:bg-blue-700"
             >
               Kembali ke Skill Gap
               <ArrowRight size={16} />
             </button>
-
           </div>
-
         </div>
-
       </main>
     );
   }
@@ -846,12 +905,9 @@ function RoadmapPageContent() {
     !career
   ) {
     return (
-      <main className="min-h-screen bg-[#f7faff] px-6 py-8">
-
+      <main className="min-h-screen bg-[#f7faff] px-4 py-6 sm:px-6 sm:py-8">
         <div className="mx-auto max-w-6xl">
-
-          <div className="rounded-[26px] border border-slate-200 bg-white p-8">
-
+          <div className="rounded-[26px] border border-slate-200 bg-white p-6 sm:p-8">
             <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-yellow-100 text-yellow-700">
               <Target size={22} />
             </div>
@@ -873,16 +929,13 @@ function RoadmapPageContent() {
                   "/skillcheck"
                 )
               }
-              className="mt-6 inline-flex items-center gap-2 rounded-xl bg-blue-600 px-5 py-3 text-sm font-semibold text-white"
+              className="mt-6 inline-flex items-center gap-2 rounded-xl bg-blue-600 px-5 py-3 text-sm font-semibold text-white transition hover:bg-blue-700"
             >
               Mulai Skill Check
               <ArrowRight size={16} />
             </button>
-
           </div>
-
         </div>
-
       </main>
     );
   }
@@ -893,20 +946,16 @@ function RoadmapPageContent() {
 
   return (
     <>
-      <main className="min-h-screen bg-[#f7faff] px-6 py-8">
-
+      <main className="min-h-screen bg-[#f7faff] px-4 py-6 sm:px-6 sm:py-8">
         <div className="mx-auto max-w-6xl">
 
           {/* =================================================
               HEADER
           ================================================= */}
 
-          <section className="relative overflow-hidden rounded-[30px] border border-blue-100 bg-white p-7 shadow-[0_15px_45px_rgba(37,99,235,0.05)] sm:p-8">
-
+          <section className="relative overflow-hidden rounded-[30px] border border-blue-100 bg-white p-6 shadow-[0_15px_45px_rgba(37,99,235,0.05)] sm:p-8">
             <div className="relative z-10">
-
               <div className="flex flex-wrap items-center gap-2">
-
                 <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-yellow-100 text-yellow-700">
                   <MapIcon />
                 </span>
@@ -926,7 +975,6 @@ function RoadmapPageContent() {
                     ? "Premium"
                     : "Freemium"}
                 </span>
-
               </div>
 
               <h1 className="mt-5 text-3xl font-bold tracking-tight text-slate-950 sm:text-4xl">
@@ -943,7 +991,6 @@ function RoadmapPageContent() {
               </p>
 
               <div className="mt-5 flex flex-wrap gap-2">
-
                 <span className="rounded-full border border-blue-100 bg-blue-50 px-3.5 py-2 text-xs font-semibold text-blue-700">
                   {career.name}
                 </span>
@@ -956,15 +1003,12 @@ function RoadmapPageContent() {
                   {developmentResults.length}{" "}
                   kompetensi perlu dikembangkan
                 </span>
-
               </div>
-
             </div>
 
             <div className="pointer-events-none absolute -right-20 -top-24 h-64 w-64 rounded-full bg-blue-100/60 blur-3xl" />
 
             <div className="pointer-events-none absolute -bottom-20 left-1/3 h-48 w-48 rounded-full bg-yellow-100/50 blur-3xl" />
-
           </section>
 
           {/* =================================================
@@ -974,16 +1018,10 @@ function RoadmapPageContent() {
           {!isPremium && (
             <section className="mt-5 overflow-hidden rounded-[26px] border border-yellow-200 bg-white shadow-[0_10px_35px_rgba(245,158,11,0.06)]">
 
-              {/* PREVIEW HEADER */}
-
               <div className="border-b border-yellow-100 bg-gradient-to-r from-yellow-50/80 via-white to-white p-6 sm:p-7">
-
                 <div className="flex flex-col justify-between gap-5 md:flex-row md:items-center">
-
                   <div>
-
                     <div className="flex items-center gap-2">
-
                       <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-yellow-100 text-yellow-700">
                         <Sparkles size={17} />
                       </span>
@@ -991,7 +1029,6 @@ function RoadmapPageContent() {
                       <p className="text-xs font-bold uppercase tracking-wider text-yellow-700">
                         Preview Roadmap
                       </p>
-
                     </div>
 
                     <h2 className="mt-3 text-xl font-bold text-slate-950">
@@ -1007,13 +1044,10 @@ function RoadmapPageContent() {
                       pengembangan berdasarkan kompetensi
                       yang paling perlu diperkuat.
                     </p>
-
                   </div>
 
                   <div className="shrink-0">
-
                     <div className="rounded-2xl border border-yellow-100 bg-white px-5 py-4 text-center shadow-sm">
-
                       <p className="text-2xl font-bold text-yellow-700">
                         {roadmapCards.length}
                       </p>
@@ -1021,21 +1055,13 @@ function RoadmapPageContent() {
                       <p className="mt-1 text-[10px] font-semibold uppercase tracking-wider text-slate-400">
                         Fokus
                       </p>
-
                     </div>
-
                   </div>
-
                 </div>
-
               </div>
 
-              {/* PREVIEW CARDS */}
-
               <div className="p-6 sm:p-7">
-
                 <div className="grid gap-4 md:grid-cols-2">
-
                   {roadmapCards
                     .slice(0, 4)
                     .map(
@@ -1046,11 +1072,8 @@ function RoadmapPageContent() {
                           }
                           className="relative overflow-hidden rounded-2xl border border-slate-100 bg-slate-50/70 p-5"
                         >
-
                           <div className="flex items-start justify-between gap-4">
-
                             <div className="min-w-0">
-
                               <span className="inline-flex rounded-full bg-yellow-50 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide text-yellow-700">
                                 Fokus {index + 1}
                               </span>
@@ -1066,50 +1089,37 @@ function RoadmapPageContent() {
                                 </span>{" "}
                                 poin
                               </p>
-
                             </div>
 
                             <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-yellow-100 text-yellow-700">
                               <Lock size={17} />
                             </div>
-
                           </div>
 
                           <div className="mt-5 rounded-xl border border-white bg-white p-4">
-
-                            <div className="flex items-center justify-between">
-
+                            <div className="flex items-center justify-between gap-3">
                               <span className="text-xs text-slate-400">
                                 Langkah pengembangan
                               </span>
 
                               <span className="text-xs font-semibold text-slate-400">
-                                {card.roadmapItems.length ||
-                                  "—"}{" "}
+                                {card.roadmapItems.length || "—"}{" "}
                                 langkah
                               </span>
-
                             </div>
 
                             <div className="mt-3 space-y-2">
-
                               <div className="h-3 w-4/5 rounded-full bg-slate-100" />
-
                               <div className="h-3 w-3/5 rounded-full bg-slate-100" />
-
                             </div>
-
                           </div>
-
                         </div>
                       )
                     )}
-
                 </div>
 
                 {roadmapCards.length === 0 && (
                   <div className="rounded-2xl border border-dashed border-yellow-200 bg-yellow-50/50 p-6 text-center">
-
                     <p className="text-sm font-semibold text-slate-700">
                       Belum ada fokus roadmap.
                     </p>
@@ -1118,17 +1128,12 @@ function RoadmapPageContent() {
                       Lakukan Skill Check untuk mendapatkan
                       rekomendasi pengembangan.
                     </p>
-
                   </div>
                 )}
 
-                {/* UPGRADE */}
-
                 {roadmapCards.length > 0 && (
                   <div className="mt-5 flex flex-col items-center justify-between gap-4 rounded-2xl border border-yellow-100 bg-yellow-50/60 p-5 sm:flex-row">
-
                     <div>
-
                       <p className="text-sm font-bold text-slate-900">
                         Buka roadmap pengembanganmu
                       </p>
@@ -1138,7 +1143,6 @@ function RoadmapPageContent() {
                         lengkap dan gunakan personalized
                         roadmap untuk menentukan prioritasmu.
                       </p>
-
                     </div>
 
                     <button
@@ -1153,12 +1157,9 @@ function RoadmapPageContent() {
                       Tingkatkan Paket
                       <ArrowRight size={16} />
                     </button>
-
                   </div>
                 )}
-
               </div>
-
             </section>
           )}
 
@@ -1170,9 +1171,7 @@ function RoadmapPageContent() {
             <section className="mt-5 overflow-hidden rounded-[24px] border border-yellow-100 bg-white shadow-[0_8px_28px_rgba(245,158,11,0.05)]">
 
               <div className="border-b border-yellow-100 bg-gradient-to-r from-yellow-50/70 via-white to-white px-6 py-5 sm:px-7">
-
                 <div className="flex items-center gap-2">
-
                   <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-yellow-100 text-yellow-700">
                     <Sparkles size={16} />
                   </span>
@@ -1180,7 +1179,6 @@ function RoadmapPageContent() {
                   <p className="text-xs font-bold uppercase tracking-wider text-yellow-700">
                     AI Personalized Roadmap
                   </p>
-
                 </div>
 
                 <h2 className="mt-3 text-lg font-bold text-slate-950">
@@ -1191,19 +1189,13 @@ function RoadmapPageContent() {
                   AI akan menyusun langkah pengembangan yang disesuaikan
                   dengan hasil Skill Check dan skill gap kamu.
                 </p>
-
               </div>
 
               <div className="p-5 sm:p-6">
-
                 <div className="relative overflow-hidden rounded-2xl border border-yellow-100 bg-yellow-50/30 p-4 sm:p-5">
 
-                  {/* CONTOH PREVIEW AI */}
-
                   <div className="pointer-events-none select-none blur-[2px]">
-
                     <div className="flex items-center gap-3">
-
                       <span className="rounded-md bg-yellow-500 px-2 py-1 text-[10px] font-bold text-white">
                         AI
                       </span>
@@ -1217,13 +1209,10 @@ function RoadmapPageContent() {
                           Berdasarkan Skill Check terakhir
                         </p>
                       </div>
-
                     </div>
 
                     <div className="mt-4 space-y-2.5">
-
                       <div className="rounded-xl border bg-white p-3.5">
-
                         <p className="text-sm font-semibold text-slate-900">
                           01. Perkuat kompetensi prioritas
                         </p>
@@ -1231,11 +1220,9 @@ function RoadmapPageContent() {
                         <p className="mt-1 text-xs leading-5 text-slate-500">
                           Pelajari materi dan lakukan latihan terarah berdasarkan gap kompetensi.
                         </p>
-
                       </div>
 
                       <div className="rounded-xl border bg-white p-3.5">
-
                         <p className="text-sm font-semibold text-slate-900">
                           02. Terapkan melalui proyek
                         </p>
@@ -1243,19 +1230,12 @@ function RoadmapPageContent() {
                         <p className="mt-1 text-xs leading-5 text-slate-500">
                           Bangun pengalaman melalui proyek yang sesuai dengan target karier.
                         </p>
-
                       </div>
-
                     </div>
-
                   </div>
 
-                  {/* LOCK OVERLAY — INFO SAJA */}
-
                   <div className="absolute inset-0 flex items-center justify-center bg-white/45 px-4">
-
                     <div className="w-full max-w-sm rounded-2xl border border-yellow-100 bg-white/95 px-5 py-4 text-center shadow-md">
-
                       <div className="mx-auto flex h-10 w-10 items-center justify-center rounded-full bg-yellow-100 text-yellow-700">
                         <Lock size={17} />
                       </div>
@@ -1267,15 +1247,11 @@ function RoadmapPageContent() {
                       <p className="mt-1 text-xs leading-5 text-slate-500">
                         Rekomendasi pengembangan yang disusun berdasarkan kompetensi dan skill gap kamu.
                       </p>
-
                     </div>
-
                   </div>
 
                 </div>
-
               </div>
-
             </section>
           )}
 
@@ -1285,12 +1261,8 @@ function RoadmapPageContent() {
 
           {isPremium && (
             <>
-              {/* ALL COMPLETE */}
-
               {roadmapCards.length === 0 ? (
-
-                <section className="mt-6 rounded-[26px] border border-emerald-100 bg-white p-7">
-
+                <section className="mt-6 rounded-[26px] border border-emerald-100 bg-white p-6 sm:p-7">
                   <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-emerald-50 text-emerald-600">
                     <CheckCircle2 size={22} />
                   </div>
@@ -1306,20 +1278,14 @@ function RoadmapPageContent() {
                     mengembangkan kompetensimu untuk
                     memperbarui roadmap.
                   </p>
-
                 </section>
-
               ) : (
-
                 <>
                   {/* PRIORITY INFO */}
 
                   <section className="mt-6 rounded-[26px] border border-slate-200 bg-white p-6 shadow-[0_10px_30px_rgba(15,23,42,0.035)]">
-
                     <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-
                       <div>
-
                         <p className="text-xs font-bold uppercase tracking-wider text-blue-600">
                           Prioritas Pengembangan
                         </p>
@@ -1333,11 +1299,9 @@ function RoadmapPageContent() {
                           memiliki prioritas pengembangan
                           yang setara.
                         </p>
-
                       </div>
 
                       <div className="shrink-0 rounded-2xl bg-blue-50 px-5 py-4 text-center">
-
                         <p className="text-xs text-blue-500">
                           Total fokus
                         </p>
@@ -1345,22 +1309,16 @@ function RoadmapPageContent() {
                         <p className="mt-1 text-2xl font-bold text-blue-700">
                           {roadmapCards.length}
                         </p>
-
                       </div>
-
                     </div>
-
                   </section>
 
                   {/* ROADMAP GRID */}
 
                   <section className="mt-5">
-
                     <div className="grid gap-4 md:grid-cols-2">
-
                       {roadmapCards.map(
                         (card) => {
-
                           const priorityLabel =
                             getPriorityLabel(
                               card.gap
@@ -1379,11 +1337,7 @@ function RoadmapPageContent() {
                               }
                               className="group rounded-[24px] border border-slate-200 bg-white p-5 text-left shadow-[0_8px_25px_rgba(15,23,42,0.03)] transition hover:-translate-y-0.5 hover:border-blue-200 hover:shadow-md"
                             >
-
-                              {/* PRIORITY */}
-
                               <div className="flex items-center justify-between gap-3">
-
                                 <span
                                   className={`rounded-full px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide ${
                                     priorityLabel ===
@@ -1408,15 +1362,10 @@ function RoadmapPageContent() {
                                   }{" "}
                                   langkah
                                 </span>
-
                               </div>
 
-                              {/* SKILL */}
-
                               <div className="mt-5 flex items-start justify-between gap-4">
-
                                 <div>
-
                                   <h3 className="text-lg font-bold text-slate-950 group-hover:text-blue-600">
                                     {
                                       card.skillName
@@ -1424,14 +1373,11 @@ function RoadmapPageContent() {
                                   </h3>
 
                                   <p className="mt-1 text-sm text-slate-500">
-                                    Fokus pengembangan
-                                    kompetensi
+                                    Fokus pengembangan kompetensi
                                   </p>
-
                                 </div>
 
                                 <div className="shrink-0 text-right">
-
                                   <p className="text-2xl font-bold text-slate-950">
                                     {
                                       card.gap
@@ -1441,17 +1387,11 @@ function RoadmapPageContent() {
                                   <p className="text-[11px] text-slate-400">
                                     gap
                                   </p>
-
                                 </div>
-
                               </div>
 
-                              {/* SCORE */}
-
                               <div className="mt-5">
-
                                 <div className="flex items-center justify-between text-xs">
-
                                   <span className="text-slate-500">
                                     Skill Kamu
                                   </span>
@@ -1465,11 +1405,9 @@ function RoadmapPageContent() {
                                       card.targetScore
                                     }
                                   </span>
-
                                 </div>
 
                                 <div className="mt-2 h-2 overflow-hidden rounded-full bg-slate-100">
-
                                   <div
                                     className="h-full rounded-full bg-blue-600 transition-all"
                                     style={{
@@ -1482,28 +1420,19 @@ function RoadmapPageContent() {
                                       )}%`,
                                     }}
                                   />
-
                                 </div>
-
                               </div>
 
-                              {/* CLICK */}
-
                               <div className="mt-5 border-t border-slate-100 pt-4">
-
                                 <p className="text-xs font-medium text-blue-600">
                                   Klik untuk melihat detail roadmap →
                                 </p>
-
                               </div>
-
                             </button>
                           );
                         }
                       )}
-
                     </div>
-
                   </section>
 
                   {/* =================================================
@@ -1511,11 +1440,8 @@ function RoadmapPageContent() {
                   ================================================= */}
 
                   <section className="mt-6 rounded-[26px] border border-blue-100 bg-white p-6 shadow-[0_10px_30px_rgba(15,23,42,0.035)]">
-
                     <div>
-
                       <div className="flex items-center gap-2">
-
                         <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-yellow-100 text-yellow-700">
                           <Sparkles size={17} />
                         </span>
@@ -1523,11 +1449,9 @@ function RoadmapPageContent() {
                         <p className="text-xs font-bold uppercase tracking-wider text-blue-600">
                           Personalized Development
                         </p>
-
                       </div>
 
                       <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-
                         <h2 className="text-lg font-bold text-slate-950">
                           Rekomendasi Pengembangan Personal
                         </h2>
@@ -1537,20 +1461,17 @@ function RoadmapPageContent() {
                             ✓ Roadmap tersimpan
                           </span>
                         )}
-
                       </div>
 
                       <p className="mt-1 max-w-2xl text-sm leading-6 text-slate-500">
                         Disusun berdasarkan hasil Skill Check
                         terakhir, benchmark, dan skill gap kamu.
                       </p>
-
                     </div>
 
                     {!aiRoadmap &&
                       !aiRoadmapLoading && (
                         <div className="mt-5 rounded-2xl border border-dashed border-blue-100 bg-blue-50/50 p-5">
-
                           <p className="text-sm font-bold text-slate-900">
                             Siap membuat roadmap yang lebih personal?
                           </p>
@@ -1573,23 +1494,19 @@ function RoadmapPageContent() {
                             Buat Personalized Roadmap
                             <ArrowRight size={15} />
                           </button>
-
                         </div>
                       )}
 
                     {aiRoadmapError && (
                       <div className="mt-5 rounded-xl border border-red-200 bg-red-50 p-4">
-
                         <p className="text-sm text-red-600">
                           {aiRoadmapError}
                         </p>
-
                       </div>
                     )}
 
                     {aiRoadmapLoading && (
                       <div className="mt-5 rounded-2xl bg-blue-50/60 p-5">
-
                         <p className="text-sm font-semibold text-slate-900">
                           AI sedang menyusun roadmap personalmu...
                         </p>
@@ -1598,22 +1515,18 @@ function RoadmapPageContent() {
                           Analisis dilakukan berdasarkan hasil
                           kompetensi dan skill gap pada Skill Check terakhir.
                         </p>
-
                       </div>
                     )}
 
                     {aiRoadmap &&
                       !aiRoadmapLoading && (
                         <div className="mt-5 rounded-2xl border border-slate-100 bg-slate-50 p-5">
-
                           <div className="mb-4 flex items-center gap-3">
-
                             <span className="rounded-md bg-yellow-500 px-2 py-1 text-[10px] font-bold text-white">
                               AI
                             </span>
 
                             <div>
-
                               <p className="text-sm font-bold text-slate-900">
                                 Roadmap Personal
                               </p>
@@ -1621,9 +1534,7 @@ function RoadmapPageContent() {
                               <p className="text-xs text-slate-400">
                                 Berdasarkan Skill Check terakhir
                               </p>
-
                             </div>
-
                           </div>
 
                           <div className="whitespace-pre-line text-sm leading-7 text-slate-600">
@@ -1641,10 +1552,8 @@ function RoadmapPageContent() {
                                 "• "
                               )}
                           </div>
-
                         </div>
                       )}
-
                   </section>
 
                   {/* =================================================
@@ -1652,7 +1561,6 @@ function RoadmapPageContent() {
                   ================================================= */}
 
                   <section className="mt-6 rounded-[26px] border border-blue-100 bg-gradient-to-br from-white to-blue-50/50 p-6">
-
                     <p className="text-xs font-bold uppercase tracking-wider text-blue-600">
                       Setelah Pengembangan
                     </p>
@@ -1679,9 +1587,7 @@ function RoadmapPageContent() {
                       Ukur Kompetensi Lagi
                       <ArrowRight size={16} />
                     </button>
-
                   </section>
-
                 </>
               )}
             </>
@@ -1692,18 +1598,14 @@ function RoadmapPageContent() {
           ================================================= */}
 
           <div className="mt-6 flex items-center gap-2 px-1 pb-8 text-xs text-slate-400">
-
             <CheckCircle2
               size={14}
               className="text-emerald-500"
             />
 
             Data berdasarkan Skill Check terakhir.
-
           </div>
-
         </div>
-
       </main>
 
       {/* =====================================================
@@ -1713,43 +1615,40 @@ function RoadmapPageContent() {
       {isPremium &&
         selectedCard && (
           <div
-            className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/40 px-4 py-6 backdrop-blur-sm"
+            className="fixed inset-0 z-50 flex items-end justify-center bg-slate-950/40 px-0 py-0 backdrop-blur-sm sm:items-center sm:px-4 sm:py-6"
             onMouseDown={() =>
               setSelectedCard(null)
             }
           >
-
             <div
-              className="max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-[26px] bg-white shadow-2xl"
+              className="flex max-h-[94vh] w-full max-w-2xl flex-col overflow-hidden rounded-t-[28px] bg-white shadow-2xl sm:max-h-[90vh] sm:rounded-[28px]"
               onMouseDown={(event) =>
                 event.stopPropagation()
               }
             >
 
-              {/* MODAL HEADER */}
+              {/* =================================================
+                  MODAL HEADER
+              ================================================= */}
 
-              <div className="border-b border-slate-100 px-6 py-5">
-
+              <div className="shrink-0 border-b border-slate-100 px-5 py-5 sm:px-6">
                 <div className="flex items-start justify-between gap-4">
-
-                  <div>
-
-                    <p className="text-xs font-bold uppercase tracking-wider text-blue-600">
+                  <div className="min-w-0">
+                    <p className="text-[10px] font-bold uppercase tracking-wider text-blue-600 sm:text-xs">
                       Roadmap Pengembangan
                     </p>
 
-                    <h2 className="mt-2 text-2xl font-bold text-slate-950">
+                    <h2 className="mt-2 text-xl font-bold leading-tight text-slate-950 sm:text-2xl">
                       {selectedCard.skillName}
                     </h2>
 
-                    <p className="mt-1 text-sm text-slate-500">
+                    <p className="mt-2 text-xs leading-5 text-slate-500 sm:text-sm">
                       Fokus untuk menutup gap{" "}
                       <span className="font-semibold text-slate-700">
                         {selectedCard.gap}
                       </span>{" "}
                       poin menuju benchmark.
                     </p>
-
                   </div>
 
                   <button
@@ -1757,203 +1656,285 @@ function RoadmapPageContent() {
                     onClick={() =>
                       setSelectedCard(null)
                     }
-                    className="flex h-9 w-9 items-center justify-center rounded-full text-slate-400 transition hover:bg-slate-100 hover:text-slate-700"
-                    aria-label="Tutup"
+                    className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-slate-400 transition hover:bg-slate-100 hover:text-slate-700"
+                    aria-label="Tutup detail roadmap"
                   >
                     <X size={18} />
                   </button>
-
                 </div>
 
-                {/* SCORE SUMMARY */}
+                {/* =================================================
+                    SCORE SUMMARY
+                ================================================= */}
 
-                <div className="mt-5 grid grid-cols-3 gap-3">
-
-                  <div className="rounded-xl bg-slate-50 p-3">
-
+                <div className="mt-5 grid grid-cols-1 gap-2.5 sm:grid-cols-3 sm:gap-3">
+                  <div className="flex items-center justify-between rounded-xl bg-slate-50 px-4 py-3 sm:block sm:p-3">
                     <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-400">
                       Skill Kamu
                     </p>
 
-                    <p className="mt-1 text-lg font-bold text-slate-900">
+                    <p className="text-lg font-bold text-slate-900 sm:mt-1">
                       {selectedCard.score}
                     </p>
-
                   </div>
 
-                  <div className="rounded-xl bg-slate-50 p-3">
-
+                  <div className="flex items-center justify-between rounded-xl bg-slate-50 px-4 py-3 sm:block sm:p-3">
                     <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-400">
                       Benchmark
                     </p>
 
-                    <p className="mt-1 text-lg font-bold text-slate-900">
+                    <p className="text-lg font-bold text-slate-900 sm:mt-1">
                       {selectedCard.targetScore}
                     </p>
-
                   </div>
 
-                  <div className="rounded-xl bg-yellow-50 p-3">
-
+                  <div className="flex items-center justify-between rounded-xl bg-yellow-50 px-4 py-3 sm:block sm:p-3">
                     <p className="text-[10px] font-semibold uppercase tracking-wide text-yellow-700">
                       Gap
                     </p>
 
-                    <p className="mt-1 text-lg font-bold text-yellow-700">
+                    <p className="text-lg font-bold text-yellow-700 sm:mt-1">
                       {selectedCard.gap}
                     </p>
-
                   </div>
-
                 </div>
-
               </div>
 
-              {/* MODAL BODY */}
+              {/* =================================================
+                  MODAL BODY
+              ================================================= */}
 
-              <div className="px-6 py-6">
+              <div className="min-h-0 overflow-y-auto px-5 py-6 sm:px-6">
 
                 <div className="mb-5">
-
-                  <p className="text-xs font-bold uppercase tracking-wider text-blue-600">
+                  <p className="text-[10px] font-bold uppercase tracking-wider text-blue-600 sm:text-xs">
                     Langkah Pengembangan
                   </p>
 
-                  <h3 className="mt-1 text-lg font-bold text-slate-950">
-                    Fokus pengembangan kompetensi
-                  </h3>
+                  <div className="mt-1 flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
+                    <h3 className="text-lg font-bold text-slate-950">
+                      Fokus pengembangan kompetensi
+                    </h3>
 
+                    {selectedCard.roadmapItems.length > 0 && (
+                      <span className="text-xs font-medium text-slate-400">
+                        {selectedCard.roadmapItems.length} langkah
+                      </span>
+                    )}
+                  </div>
                 </div>
 
                 {selectedCard
                   .roadmapItems
                   .length === 0 ? (
+                  <div className="rounded-2xl border border-dashed border-yellow-200 bg-yellow-50/50 p-6 text-center sm:p-8">
+                    <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-yellow-100 text-yellow-700">
+                      <Target size={21} />
+                    </div>
 
-                  <div className="rounded-2xl border border-dashed border-slate-200 p-6 text-center">
-
-                    <p className="text-sm font-semibold text-slate-700">
+                    <p className="mt-4 text-sm font-bold text-slate-800">
                       Detail roadmap belum tersedia
                     </p>
 
-                    <p className="mt-2 text-xs leading-5 text-slate-500">
+                    <p className="mx-auto mt-2 max-w-md text-xs leading-6 text-slate-500">
                       Kompetensi ini sudah teridentifikasi
-                      sebagai prioritas pengembangan,
-                      tetapi langkah roadmap belum
-                      dimasukkan ke sistem.
+                      sebagai prioritas pengembangan, tetapi
+                      langkah roadmap untuk kompetensi ini
+                      belum dimasukkan ke sistem.
                     </p>
 
+                    <div className="mx-auto mt-5 max-w-md rounded-xl border border-white bg-white p-4 text-left">
+                      <p className="text-[10px] font-bold uppercase tracking-wide text-slate-400">
+                        Fokus Saat Ini
+                      </p>
+
+                      <p className="mt-1 text-sm font-semibold text-slate-900">
+                        Kurangi gap dari{" "}
+                        {selectedCard.score}{" "}
+                        menuju{" "}
+                        {selectedCard.targetScore}
+                      </p>
+
+                      <div className="mt-3 h-2 overflow-hidden rounded-full bg-slate-100">
+                        <div
+                          className="h-full rounded-full bg-blue-600"
+                          style={{
+                            width: `${Math.min(
+                              Math.max(
+                                selectedCard.score,
+                                0
+                              ),
+                              100
+                            )}%`,
+                          }}
+                        />
+                      </div>
+                    </div>
                   </div>
-
                 ) : (
-
                   <div className="space-y-4">
-
                     {selectedCard
                       .roadmapItems
                       .map(
                         (
                           item,
                           index
-                        ) => (
+                        ) => {
+                          const statusLabel =
+                            getStatusLabel(
+                              item.status
+                            );
 
-                          <div
-                            key={
-                              item.id
-                            }
-                            className="rounded-2xl border border-slate-100 bg-slate-50/50 p-5"
-                          >
+                          const recommendationLabel =
+                            getRecommendationLabel(
+                              item.recommendation_type
+                            );
 
-                            <div className="flex gap-4">
+                          return (
+                            <div
+                              key={
+                                item.id
+                              }
+                              className="rounded-2xl border border-slate-200 bg-white p-4 shadow-[0_5px_20px_rgba(15,23,42,0.03)] sm:p-5"
+                            >
+                              <div className="flex gap-3 sm:gap-4">
 
-                              {/* STEP */}
+                                {/* STEP */}
 
-                              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-blue-600 text-xs font-bold text-white">
-                                {String(
-                                  index + 1
-                                ).padStart(
-                                  2,
-                                  "0"
-                                )}
-                              </div>
-
-                              {/* CONTENT */}
-
-                              <div className="min-w-0 flex-1">
-
-                                <div className="flex flex-wrap items-center gap-2">
-
-                                  <h4 className="text-sm font-bold text-slate-900">
-                                    {
-                                      item.title
-                                    }
-                                  </h4>
-
-                                  {item.recommendation_type && (
-                                    <span className="rounded-full bg-blue-50 px-2 py-0.5 text-[10px] font-medium text-blue-600">
-                                      {
-                                        item.recommendation_type
-                                      }
-                                    </span>
+                                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-blue-600 text-xs font-bold text-white sm:h-10 sm:w-10">
+                                  {String(
+                                    index + 1
+                                  ).padStart(
+                                    2,
+                                    "0"
                                   )}
-
                                 </div>
 
-                                <p className="mt-2 text-sm leading-6 text-slate-500">
-                                  {
-                                    item.description
-                                  }
-                                </p>
+                                {/* CONTENT */}
 
-                                <div className="mt-3">
+                                <div className="min-w-0 flex-1">
+                                  <div className="flex flex-wrap items-start gap-2">
+                                    <h4 className="min-w-0 flex-1 text-sm font-bold leading-6 text-slate-900">
+                                      {
+                                        item.title
+                                      }
+                                    </h4>
+                                  </div>
 
-                                  <span
-                                    className={`rounded-full px-2.5 py-1 text-[10px] font-medium ${
-                                      item.status ===
-                                      "completed"
-                                        ? "bg-emerald-50 text-emerald-600"
-                                        : "bg-slate-100 text-slate-500"
-                                    }`}
-                                  >
-                                    {
-                                      item.status
-                                    }
-                                  </span>
+                                  <div className="mt-2 flex flex-wrap gap-2">
+                                    {recommendationLabel && (
+                                      <span className="rounded-full bg-blue-50 px-2.5 py-1 text-[10px] font-semibold text-blue-600">
+                                        {
+                                          recommendationLabel
+                                        }
+                                      </span>
+                                    )}
 
+                                    <span
+                                      className={`rounded-full px-2.5 py-1 text-[10px] font-semibold ${
+                                        statusLabel ===
+                                        "Selesai"
+                                          ? "bg-emerald-50 text-emerald-600"
+                                          : statusLabel ===
+                                            "Sedang Berjalan"
+                                          ? "bg-blue-50 text-blue-600"
+                                          : "bg-slate-100 text-slate-500"
+                                      }`}
+                                    >
+                                      {statusLabel}
+                                    </span>
+                                  </div>
+
+                                  <div className="mt-4 rounded-xl bg-slate-50 p-3.5 sm:p-4">
+                                    <p className="text-[10px] font-bold uppercase tracking-wide text-slate-400">
+                                      Rekomendasi
+                                    </p>
+
+                                    <p className="mt-1.5 text-sm leading-6 text-slate-600">
+                                      {
+                                        item.description
+                                      }
+                                    </p>
+                                  </div>
                                 </div>
-
                               </div>
-
                             </div>
-
-                          </div>
-
-                        )
+                          );
+                        }
                       )}
-
                   </div>
+                )}
 
+                {/* MODAL FOOTER INFO */}
+
+                {selectedCard
+                  .roadmapItems
+                  .length > 0 && (
+                  <div className="mt-6 rounded-2xl border border-blue-100 bg-blue-50/60 p-4">
+                    <div className="flex items-start gap-3">
+                      <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-blue-100 text-blue-600">
+                        <CheckCircle2 size={16} />
+                      </div>
+
+                      <div>
+                        <p className="text-xs font-bold text-slate-800">
+                          Tujuan pengembangan
+                        </p>
+
+                        <p className="mt-1 text-xs leading-5 text-slate-500">
+                          Gunakan langkah di atas untuk
+                          memperkuat kompetensi{" "}
+                          <span className="font-semibold text-slate-700">
+                            {selectedCard.skillName}
+                          </span>{" "}
+                          dan mengurangi gap terhadap benchmark.
+                        </p>
+                      </div>
+                    </div>
+                  </div>
                 )}
 
               </div>
 
-            </div>
+              {/* =================================================
+                  MODAL CLOSE
+              ================================================= */}
 
+              <div className="shrink-0 border-t border-slate-100 bg-white px-5 py-4 sm:px-6">
+                <button
+                  type="button"
+                  onClick={() =>
+                    setSelectedCard(null)
+                  }
+                  className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-600 transition hover:bg-slate-50"
+                >
+                  Tutup Detail
+                </button>
+              </div>
+
+            </div>
           </div>
         )}
-
     </>
   );
 }
+
+/* =========================================================
+   PAGE EXPORT
+========================================================= */
 
 export default function RoadmapPage() {
   return (
     <Suspense
       fallback={
-        <main className="min-h-screen bg-[#f7faff] px-6 py-8">
+        <main className="min-h-screen bg-[#f7faff] px-4 py-6 sm:px-6 sm:py-8">
           <div className="mx-auto max-w-6xl animate-pulse">
             <div className="h-5 w-36 rounded-full bg-slate-200" />
-            <div className="mt-5 h-10 w-80 rounded-xl bg-slate-200" />
+
+            <div className="mt-5 h-10 w-80 max-w-full rounded-xl bg-slate-200" />
+
             <div className="mt-3 h-4 w-[520px] max-w-full rounded-full bg-slate-100" />
+
             <div className="mt-8 h-32 rounded-[26px] bg-white" />
           </div>
         </main>

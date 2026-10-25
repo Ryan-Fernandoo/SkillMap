@@ -59,8 +59,8 @@ const mainMenus = [
     icon: Target,
   },
   {
-    label: "Portfolio & Pengalaman",
-    href: "/portfolio",
+    label: "Portofolio & Pengalaman",
+    href: "/portofolio",
     icon: BriefcaseBusiness,
   },
 ];
