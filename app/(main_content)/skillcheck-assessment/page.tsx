@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { Suspense, useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 
@@ -58,7 +58,7 @@ function normalizeId(value: unknown): string {
   return String(value ?? "").trim();
 }
 
-export default function SkillCheckAssessmentPage() {
+function SkillCheckAssessmentContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
 
@@ -1144,5 +1144,25 @@ export default function SkillCheckAssessmentPage() {
 
       </div>
     </main>
+  );
+
+
+}
+
+export default function SkillCheckAssessmentPage() {
+  return (
+    <Suspense
+      fallback={
+        <main className="min-h-screen bg-gray-50 px-6 py-10 dark:bg-gray-950 dark:text-white">
+          <div className="mx-auto max-w-3xl">
+            <p className="text-sm text-gray-500">
+              Memuat assessment...
+            </p>
+          </div>
+        </main>
+      }
+    >
+      <SkillCheckAssessmentContent />
+    </Suspense>
   );
 }
