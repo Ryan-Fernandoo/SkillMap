@@ -1,6 +1,11 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import {
+  Suspense,
+  useEffect,
+  useMemo,
+  useState,
+} from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 
@@ -52,7 +57,7 @@ type SkillComparison = {
   currentGap: number;
 };
 
-export default function ProgressPage() {
+function ProgressPageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
 
@@ -1318,5 +1323,23 @@ export default function ProgressPage() {
 
       </div>
     </main>
+  );
+}
+
+export default function ProgressPage() {
+  return (
+    <Suspense
+      fallback={
+        <main className="min-h-screen bg-gray-50 px-6 py-8">
+          <div className="mx-auto max-w-5xl">
+            <p className="text-sm text-gray-500">
+              Memuat Progress...
+            </p>
+          </div>
+        </main>
+      }
+    >
+      <ProgressPageContent />
+    </Suspense>
   );
 }
