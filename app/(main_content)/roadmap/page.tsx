@@ -11,6 +11,7 @@ import {
 } from "lucide-react";
 
 import {
+  Suspense,
   useEffect,
   useMemo,
   useState,
@@ -86,7 +87,7 @@ type RoadmapCard = {
    PAGE
 ========================================================= */
 
-export default function RoadmapPage() {
+function RoadmapPageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
 
@@ -851,7 +852,7 @@ export default function RoadmapPage() {
 
           <div className="rounded-[26px] border border-slate-200 bg-white p-8">
 
-            <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-blue-50 text-blue-600">
+            <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-yellow-100 text-yellow-700">
               <Target size={22} />
             </div>
 
@@ -906,7 +907,7 @@ export default function RoadmapPage() {
 
               <div className="flex flex-wrap items-center gap-2">
 
-                <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-50 text-blue-600">
+                <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-yellow-100 text-yellow-700">
                   <MapIcon />
                 </span>
 
@@ -917,7 +918,7 @@ export default function RoadmapPage() {
                 <span
                   className={`rounded-full px-3 py-1 text-[10px] font-bold ${
                     isPremium
-                      ? "bg-blue-50 text-blue-600"
+                      ? "bg-yellow-100 text-yellow-700"
                       : "bg-yellow-50 text-yellow-700"
                   }`}
                 >
@@ -995,7 +996,7 @@ export default function RoadmapPage() {
 
                     <h2 className="mt-3 text-xl font-bold text-slate-950">
                       Ada{" "}
-                      <span className="text-yellow-600">
+                      <span className="text-yellow-700">
                         {roadmapCards.length}
                       </span>{" "}
                       fokus pengembangan untukmu
@@ -1013,7 +1014,7 @@ export default function RoadmapPage() {
 
                     <div className="rounded-2xl border border-yellow-100 bg-white px-5 py-4 text-center shadow-sm">
 
-                      <p className="text-2xl font-bold text-yellow-600">
+                      <p className="text-2xl font-bold text-yellow-700">
                         {roadmapCards.length}
                       </p>
 
@@ -1060,7 +1061,7 @@ export default function RoadmapPage() {
 
                               <p className="mt-1 text-xs text-slate-500">
                                 Gap{" "}
-                                <span className="font-semibold text-yellow-600">
+                                <span className="font-semibold text-yellow-700">
                                   {card.gap}
                                 </span>{" "}
                                 poin
@@ -1166,17 +1167,17 @@ export default function RoadmapPage() {
           ================================================= */}
 
           {!isPremium && (
-            <section className="mt-5 overflow-hidden rounded-[24px] border border-yellow-100 bg-white shadow-[0_8px_28px_rgba(37,99,235,0.04)]">
+            <section className="mt-5 overflow-hidden rounded-[24px] border border-yellow-100 bg-white shadow-[0_8px_28px_rgba(245,158,11,0.05)]">
 
               <div className="border-b border-yellow-100 bg-gradient-to-r from-yellow-50/70 via-white to-white px-6 py-5 sm:px-7">
 
                 <div className="flex items-center gap-2">
 
-                  <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-yellow-50 text-yellow-600">
+                  <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-yellow-100 text-yellow-700">
                     <Sparkles size={16} />
                   </span>
 
-                  <p className="text-xs font-bold uppercase tracking-wider text-yellow-600">
+                  <p className="text-xs font-bold uppercase tracking-wider text-yellow-700">
                     AI Personalized Roadmap
                   </p>
 
@@ -1195,7 +1196,7 @@ export default function RoadmapPage() {
 
               <div className="p-5 sm:p-6">
 
-                <div className="relative overflow-hidden rounded-2xl border border-blue-100 bg-blue-50/30 p-4 sm:p-5">
+                <div className="relative overflow-hidden rounded-2xl border border-yellow-100 bg-yellow-50/30 p-4 sm:p-5">
 
                   {/* CONTOH PREVIEW AI */}
 
@@ -1203,7 +1204,7 @@ export default function RoadmapPage() {
 
                     <div className="flex items-center gap-3">
 
-                      <span className="rounded-md bg-blue-600 px-2 py-1 text-[10px] font-bold text-white">
+                      <span className="rounded-md bg-yellow-500 px-2 py-1 text-[10px] font-bold text-white">
                         AI
                       </span>
 
@@ -1253,9 +1254,9 @@ export default function RoadmapPage() {
 
                   <div className="absolute inset-0 flex items-center justify-center bg-white/45 px-4">
 
-                    <div className="w-full max-w-sm rounded-2xl border border-blue-100 bg-white/95 px-5 py-4 text-center shadow-md">
+                    <div className="w-full max-w-sm rounded-2xl border border-yellow-100 bg-white/95 px-5 py-4 text-center shadow-md">
 
-                      <div className="mx-auto flex h-10 w-10 items-center justify-center rounded-full bg-yellow-50 text-yellow-600">
+                      <div className="mx-auto flex h-10 w-10 items-center justify-center rounded-full bg-yellow-100 text-yellow-700">
                         <Lock size={17} />
                       </div>
 
@@ -1515,11 +1516,11 @@ export default function RoadmapPage() {
 
                       <div className="flex items-center gap-2">
 
-                        <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-yellow-50 text-yellow-600">
+                        <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-yellow-100 text-yellow-700">
                           <Sparkles size={17} />
                         </span>
 
-                        <p className="text-xs font-bold uppercase tracking-wider text-yellow-600">
+                        <p className="text-xs font-bold uppercase tracking-wider text-blue-600">
                           Personalized Development
                         </p>
 
@@ -1607,7 +1608,7 @@ export default function RoadmapPage() {
 
                           <div className="mb-4 flex items-center gap-3">
 
-                            <span className="rounded-md bg-blue-600 px-2 py-1 text-[10px] font-bold text-white">
+                            <span className="rounded-md bg-yellow-500 px-2 py-1 text-[10px] font-bold text-white">
                               AI
                             </span>
 
@@ -1794,7 +1795,7 @@ export default function RoadmapPage() {
 
                   <div className="rounded-xl bg-yellow-50 p-3">
 
-                    <p className="text-[10px] font-semibold uppercase tracking-wide text-yellow-600">
+                    <p className="text-[10px] font-semibold uppercase tracking-wide text-yellow-700">
                       Gap
                     </p>
 
@@ -1941,6 +1942,25 @@ export default function RoadmapPage() {
         )}
 
     </>
+  );
+}
+
+export default function RoadmapPage() {
+  return (
+    <Suspense
+      fallback={
+        <main className="min-h-screen bg-[#f7faff] px-6 py-8">
+          <div className="mx-auto max-w-6xl animate-pulse">
+            <div className="h-5 w-36 rounded-full bg-slate-200" />
+            <div className="mt-5 h-10 w-80 rounded-xl bg-slate-200" />
+            <div className="mt-3 h-4 w-[520px] max-w-full rounded-full bg-slate-100" />
+            <div className="mt-8 h-32 rounded-[26px] bg-white" />
+          </div>
+        </main>
+      }
+    >
+      <RoadmapPageContent />
+    </Suspense>
   );
 }
 
