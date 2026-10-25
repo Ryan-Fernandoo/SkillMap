@@ -17,16 +17,14 @@ const supabaseAdmin = createClient(
 
 export async function POST(request: Request) {
   try {
-    // =========================
-    // 1. Ambil notification
-    // =========================
+    // =====================================================
+    // 1. Ambil notification dari Midtrans
+    // =====================================================
 
     const notification = await request.json();
 
     const {
       order_id,
-      transaction_status,
-      fraud_status,
       transaction_id,
       payment_type,
     } = notification;
@@ -40,9 +38,9 @@ export async function POST(request: Request) {
       );
     }
 
-    // =========================
-    // 2. Verifikasi notification
-    // =========================
+    // =====================================================
+    // 2. Verifikasi notification ke Midtrans
+    // =====================================================
 
     const statusResponse =
       await coreApi.transaction.notification(
@@ -52,15 +50,15 @@ export async function POST(request: Request) {
     const verifiedOrderId =
       statusResponse.order_id;
 
-    const verifiedTransactionStatus =
+    const transactionStatus =
       statusResponse.transaction_status;
 
-    const verifiedFraudStatus =
+    const fraudStatus =
       statusResponse.fraud_status;
 
-    // =========================
-    // 3. Cari subscription
-    // =========================
+    // =====================================================
+    // 3. Cari subscription berdasarkan order_id
+    // =====================================================
 
     const {
       data: subscription,
@@ -76,6 +74,11 @@ export async function POST(request: Request) {
     }
 
     if (!subscription) {
+      console.error(
+        "Subscription tidak ditemukan:",
+        verifiedOrderId
+      );
+
       return NextResponse.json(
         {
           error: "Subscription tidak ditemukan.",
@@ -85,110 +88,199 @@ export async function POST(request: Request) {
       );
     }
 
-    // =========================
-    // 4. Tentukan status pembayaran
-    // =========================
-
-    let newStatus = "pending";
-    let newPlan = subscription.plan;
+    // =====================================================
+    // 4. Tentukan status transaksi
+    // =====================================================
 
     const isSuccess =
-      verifiedTransactionStatus === "settlement" ||
+      transactionStatus === "settlement" ||
       (
-        verifiedTransactionStatus === "capture" &&
-        verifiedFraudStatus !== "deny"
+        transactionStatus === "capture" &&
+        fraudStatus !== "deny"
       );
 
     const isPending =
-      verifiedTransactionStatus === "pending";
+      transactionStatus === "pending";
 
     const isFailed =
-      verifiedTransactionStatus === "deny" ||
-      verifiedTransactionStatus === "cancel" ||
-      verifiedTransactionStatus === "expire";
+      transactionStatus === "deny" ||
+      transactionStatus === "cancel" ||
+      transactionStatus === "expire";
+
+    // =====================================================
+    // 5. Jika pembayaran berhasil
+    // =====================================================
 
     if (isSuccess) {
-      newStatus = "active";
-      newPlan = "premium";
-    } else if (isPending) {
-      newStatus = "pending";
-      newPlan = "premium";
-    } else if (isFailed) {
-      newStatus = "failed";
-      newPlan = "free";
-    }
+      const now = new Date();
 
-    // =========================
-    // 5. Update subscription
-    // =========================
+      /*
+       * Hindari memperpanjang subscription berkali-kali
+       * jika Midtrans mengirim notification settlement
+       * lebih dari satu kali.
+       */
+      const alreadyActive =
+        subscription.plan === "premium" &&
+        subscription.status === "active" &&
+        subscription.started_at &&
+        subscription.expires_at;
 
-    const updateData: {
-      plan: string;
-      status: string;
-      provider: string;
-      order_id: string;
-      updated_at: string;
-      started_at?: string;
-      expires_at?: string;
-    } = {
-      plan: newPlan,
-      status: newStatus,
-      provider: "midtrans",
-      order_id: verifiedOrderId,
-      updated_at: new Date().toISOString(),
-    };
+      if (alreadyActive) {
+        const { error: updateError } =
+          await supabaseAdmin
+            .from("subscriptions")
+            .update({
+              provider: "midtrans",
+              updated_at: now.toISOString(),
+            })
+            .eq("id", subscription.id);
 
-    // =========================
-    // 6. Jika berhasil
-    // =========================
+        if (updateError) {
+          throw updateError;
+        }
+      } else {
+        const startedAt = now;
 
-    if (isSuccess) {
-      const startedAt = new Date();
+        const expiresAt = new Date(startedAt);
+        expiresAt.setMonth(
+          expiresAt.getMonth() + 1
+        );
 
-      const expiresAt = new Date(startedAt);
-      expiresAt.setMonth(
-        expiresAt.getMonth() + 1
+        const { error: updateError } =
+          await supabaseAdmin
+            .from("subscriptions")
+            .update({
+              plan: "premium",
+              status: "active",
+              billing_cycle: "monthly",
+              provider: "midtrans",
+              order_id: verifiedOrderId,
+              started_at:
+                startedAt.toISOString(),
+              expires_at:
+                expiresAt.toISOString(),
+              updated_at:
+                now.toISOString(),
+            })
+            .eq("id", subscription.id);
+
+        if (updateError) {
+          throw updateError;
+        }
+      }
+
+      console.log(
+        "Premium berhasil diaktifkan:",
+        {
+          order_id: verifiedOrderId,
+          transaction_id,
+          payment_type,
+        }
       );
 
-      updateData.started_at =
-        startedAt.toISOString();
-
-      updateData.expires_at =
-        expiresAt.toISOString();
+      return NextResponse.json({
+        success: true,
+        order_id: verifiedOrderId,
+        status: "active",
+        plan: "premium",
+      });
     }
 
-    const {
-      error: updateError,
-    } = await supabaseAdmin
-      .from("subscriptions")
-      .update(updateData)
-      .eq("order_id", verifiedOrderId);
+    // =====================================================
+    // 6. Jika pembayaran masih pending
+    // =====================================================
 
-    if (updateError) {
-      throw updateError;
+    if (isPending) {
+      const { error: updateError } =
+        await supabaseAdmin
+          .from("subscriptions")
+          .update({
+            plan: "premium",
+            status: "pending",
+            billing_cycle: "monthly",
+            provider: "midtrans",
+            order_id: verifiedOrderId,
+            updated_at:
+              new Date().toISOString(),
+          })
+          .eq("id", subscription.id);
+
+      if (updateError) {
+        throw updateError;
+      }
+
+      console.log(
+        "Pembayaran masih pending:",
+        verifiedOrderId
+      );
+
+      return NextResponse.json({
+        success: true,
+        order_id: verifiedOrderId,
+        status: "pending",
+        plan: "premium",
+      });
     }
 
-    // =========================
-    // 7. Response
-    // =========================
+    // =====================================================
+    // 7. Jika pembayaran gagal / dibatalkan / expired
+    // =====================================================
 
-    console.log("Midtrans notification processed:", {
-      order_id: verifiedOrderId,
-      transaction_status:
-        verifiedTransactionStatus,
-      fraud_status:
-        verifiedFraudStatus,
-      transaction_id,
-      payment_type,
-      subscription_status: newStatus,
-      plan: newPlan,
-    });
+    if (isFailed) {
+      const { error: updateError } =
+        await supabaseAdmin
+          .from("subscriptions")
+          .update({
+            plan: "free",
+            status: "failed",
+            provider: "midtrans",
+            order_id: verifiedOrderId,
+            updated_at:
+              new Date().toISOString(),
+          })
+          .eq("id", subscription.id);
+
+      if (updateError) {
+        throw updateError;
+      }
+
+      console.log(
+        "Pembayaran gagal:",
+        {
+          order_id: verifiedOrderId,
+          transaction_status:
+            transactionStatus,
+        }
+      );
+
+      return NextResponse.json({
+        success: true,
+        order_id: verifiedOrderId,
+        status: "failed",
+        plan: "free",
+      });
+    }
+
+    // =====================================================
+    // 8. Status lain dari Midtrans
+    // =====================================================
+
+    console.log(
+      "Status transaksi belum ditangani:",
+      {
+        order_id: verifiedOrderId,
+        transaction_status:
+          transactionStatus,
+        fraud_status:
+          fraudStatus,
+      }
+    );
 
     return NextResponse.json({
       success: true,
       order_id: verifiedOrderId,
-      status: newStatus,
-      plan: newPlan,
+      status: transactionStatus,
+      plan: subscription.plan,
     });
   } catch (error) {
     console.error(
