@@ -1,26 +1,426 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --background: #f7faff;
+  --foreground: #0f172a;
+
+  --skillmap-blue: #2563eb;
+  --skillmap-blue-dark: #1d4ed8;
+  --skillmap-blue-light: #eff6ff;
+  --skillmap-blue-soft: #dbeafe;
+
+  --skillmap-yellow: #facc15;
+  --skillmap-yellow-light: #fef9c3;
+
+  --skillmap-border: #dbe4f0;
+  --skillmap-muted: #64748b;
+  --skillmap-card: #ffffff;
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
+
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+* {
+  box-sizing: border-box;
+}
+
+html {
+  scroll-behavior: smooth;
 }
 
 body {
+  margin: 0;
   background: var(--background);
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
+}
+
+/* =========================================================
+   SKILLMAP GLOBAL APP
+   ========================================================= */
+
+.skillmap-main-shell {
+  position: relative;
+  min-height: 100vh;
+  overflow-x: hidden;
+  background:
+    radial-gradient(
+      circle at 85% 5%,
+      rgba(37, 99, 235, 0.08),
+      transparent 28%
+    ),
+    radial-gradient(
+      circle at 15% 90%,
+      rgba(250, 204, 21, 0.06),
+      transparent 25%
+    ),
+    #f7faff;
+}
+
+/* subtle background grid */
+
+.skillmap-main-shell::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0.35;
+
+  background-image:
+    linear-gradient(
+      rgba(37, 99, 235, 0.025) 1px,
+      transparent 1px
+    ),
+    linear-gradient(
+      90deg,
+      rgba(37, 99, 235, 0.025) 1px,
+      transparent 1px
+    );
+
+  background-size: 36px 36px;
+
+  mask-image: linear-gradient(
+    to bottom,
+    black,
+    transparent 90%
+  );
+}
+
+/* =========================================================
+   PAGE ANIMATION
+   ========================================================= */
+
+.skillmap-page {
+  position: relative;
+  z-index: 1;
+  animation: skillmap-page-enter 0.45s ease-out;
+}
+
+@keyframes skillmap-page-enter {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* =========================================================
+   CARDS
+   ========================================================= */
+
+.skillmap-card {
+  position: relative;
+  border: 1px solid var(--skillmap-border);
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.94);
+  box-shadow:
+    0 8px 25px rgba(15, 23, 42, 0.035),
+    0 2px 6px rgba(15, 23, 42, 0.025);
+
+  transition:
+    transform 0.22s ease,
+    box-shadow 0.22s ease,
+    border-color 0.22s ease;
+}
+
+.skillmap-card:hover {
+  transform: translateY(-4px);
+  border-color: #bfdbfe;
+
+  box-shadow:
+    0 16px 35px rgba(37, 99, 235, 0.08),
+    0 4px 10px rgba(15, 23, 42, 0.04);
+}
+
+/* card dengan accent biru */
+
+.skillmap-card-blue {
+  position: relative;
+  overflow: hidden;
+  border: 1px solid #bfdbfe;
+  border-radius: 18px;
+  background:
+    linear-gradient(
+      135deg,
+      #ffffff 0%,
+      #f8fbff 100%
+    );
+
+  box-shadow:
+    0 10px 30px rgba(37, 99, 235, 0.07);
+
+  transition:
+    transform 0.22s ease,
+    box-shadow 0.22s ease;
+}
+
+.skillmap-card-blue::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 4px;
+  height: 100%;
+  background: #2563eb;
+}
+
+.skillmap-card-blue:hover {
+  transform: translateY(-4px);
+
+  box-shadow:
+    0 18px 40px rgba(37, 99, 235, 0.12);
+}
+
+/* =========================================================
+   BUTTONS
+   ========================================================= */
+
+.skillmap-button {
+  position: relative;
+  overflow: hidden;
+  transition:
+    transform 0.18s ease,
+    box-shadow 0.18s ease,
+    background 0.18s ease;
+}
+
+.skillmap-button:hover {
+  transform: translateY(-2px);
+
+  box-shadow:
+    0 8px 20px rgba(37, 99, 235, 0.2);
+}
+
+.skillmap-button:active {
+  transform: translateY(0);
+}
+
+/* =========================================================
+   INPUTS
+   ========================================================= */
+
+.skillmap-input {
+  outline: none;
+
+  transition:
+    border-color 0.18s ease,
+    box-shadow 0.18s ease,
+    background 0.18s ease;
+}
+
+.skillmap-input:hover {
+  border-color: #bfdbfe;
+}
+
+.skillmap-input:focus {
+  border-color: #3b82f6 !important;
+
+  box-shadow:
+    0 0 0 4px rgba(59, 130, 246, 0.1);
+}
+
+/* =========================================================
+   BLUE BADGE
+   ========================================================= */
+
+.skillmap-badge-blue {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+
+  border: 1px solid #bfdbfe;
+  border-radius: 999px;
+
+  background: #eff6ff;
+  color: #2563eb;
+}
+
+/* =========================================================
+   YELLOW ACCENT
+   ========================================================= */
+
+.skillmap-accent-yellow {
+  border-color: #fde68a;
+  background: #fefce8;
+  color: #a16207;
+}
+
+/* =========================================================
+   PROGRESS
+   ========================================================= */
+
+.skillmap-progress {
+  overflow: hidden;
+  height: 8px;
+
+  border-radius: 999px;
+  background: #e8eef7;
+}
+
+.skillmap-progress-bar {
+  height: 100%;
+  border-radius: inherit;
+
+  background:
+    linear-gradient(
+      90deg,
+      #2563eb,
+      #60a5fa
+    );
+
+  transition: width 0.6s ease;
+}
+
+/* =========================================================
+   FLOATING EFFECT
+   ========================================================= */
+
+.skillmap-float {
+  animation: skillmap-float 4s ease-in-out infinite;
+}
+
+@keyframes skillmap-float {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+
+  50% {
+    transform: translateY(-6px);
+  }
+}
+
+/* =========================================================
+   INTERACTIVE ELEMENTS
+   ========================================================= */
+
+.skillmap-interactive {
+  transition:
+    background 0.18s ease,
+    color 0.18s ease,
+    transform 0.18s ease,
+    border-color 0.18s ease;
+}
+
+.skillmap-interactive:hover {
+  background: #eff6ff;
+  border-color: #bfdbfe;
+}
+
+.skillmap-interactive:active {
+  transform: scale(0.99);
+}
+
+/* =========================================================
+   SECTION
+   ========================================================= */
+
+.skillmap-section {
+  position: relative;
+}
+
+.skillmap-section-title {
+  color: #0f172a;
+}
+
+.skillmap-section-description {
+  color: #64748b;
+}
+
+/* =========================================================
+   SETTINGS OVERRIDE
+   ========================================================= */
+
+/*
+   Settings sebelumnya menggunakan dark:bg-gray-950
+   sehingga terlihat seperti aplikasi berbeda.
+
+   Kita paksa area settings ikut visual system SkillMap.
+*/
+
+.skillmap-settings-page {
+  min-height: 100vh !important;
+  background:
+    radial-gradient(
+      circle at 90% 0%,
+      rgba(37, 99, 235, 0.08),
+      transparent 30%
+    ),
+    #f7faff !important;
+
+  color: #0f172a !important;
+}
+
+.skillmap-settings-page .skillmap-settings-card {
+  border: 1px solid #dbe4f0 !important;
+  border-radius: 20px !important;
+
+  background: rgba(255, 255, 255, 0.96) !important;
+
+  box-shadow:
+    0 10px 30px rgba(15, 23, 42, 0.05) !important;
+
+  transition:
+    transform 0.22s ease,
+    box-shadow 0.22s ease,
+    border-color 0.22s ease;
+}
+
+.skillmap-settings-page .skillmap-settings-card:hover {
+  transform: translateY(-3px);
+
+  border-color: #bfdbfe !important;
+
+  box-shadow:
+    0 18px 40px rgba(37, 99, 235, 0.08) !important;
+}
+
+/* =========================================================
+   SELECTION
+   ========================================================= */
+
+::selection {
+  background: #bfdbfe;
+  color: #1e3a8a;
+}
+
+/* =========================================================
+   SCROLLBAR
+   ========================================================= */
+
+::-webkit-scrollbar {
+  width: 9px;
+}
+
+::-webkit-scrollbar-track {
+  background: #f1f5f9;
+}
+
+::-webkit-scrollbar-thumb {
+  border-radius: 999px;
+  background: #cbd5e1;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
+}
+
+@keyframes compassFloat {
+  0%,
+  100% {
+    transform: translateY(0) rotate(-5deg);
+  }
+
+  50% {
+    transform: translateY(-4px) rotate(5deg);
+  }
 }
