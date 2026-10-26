@@ -122,8 +122,27 @@ export default function Sidebar() {
   }, [pathname]);
 
   async function handleLogout() {
-    await supabase.auth.signOut();
-    router.push("/login");
+    try {
+      const { error } =
+        await supabase.auth.signOut();
+
+      if (error) {
+        console.error(
+          "Gagal logout:",
+          error
+        );
+        return;
+      }
+
+      // Setelah logout, kembali ke homepage
+      router.push("/");
+      router.refresh();
+    } catch (error) {
+      console.error(
+        "Terjadi kesalahan saat logout:",
+        error
+      );
+    }
   }
 
   function isActive(href: string) {

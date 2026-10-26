@@ -13,11 +13,13 @@ import { useEffect, useState } from "react";
 
 import { isPremiumUser } from "@/lib/subscription";
 import { supabase } from "@/lib/supabase";
+import { useLanguage } from "@/components/language-provider";
 
 export default function UpgradePage() {
   const [isPremium, setIsPremium] = useState(false);
   const [loading, setLoading] = useState(true);
   const [paymentLoading, setPaymentLoading] = useState(false);
+  const { t } = useLanguage();
 
   useEffect(() => {
     async function checkPlan() {
@@ -139,7 +141,7 @@ export default function UpgradePage() {
               </span>
 
               <span className="text-xs font-bold uppercase tracking-wider text-blue-600">
-                Tingkatkan Paket
+                {t("upgrade.label")}
               </span>
 
               <span
@@ -149,18 +151,16 @@ export default function UpgradePage() {
                     : "bg-yellow-50 text-yellow-700"
                 }`}
               >
-                {isPremium ? "Premium" : "Freemium"}
+                {isPremium ? t("upgrade.premiumPlan") : t("upgrade.freePlan")}
               </span>
             </div>
 
             <h1 className="mt-5 text-3xl font-bold tracking-tight text-slate-950 sm:text-4xl">
-              Kembangkan potensimu lebih jauh
+              {t("upgrade.title")}
             </h1>
 
             <p className="mt-3 max-w-2xl text-sm leading-7 text-slate-500 sm:text-base">
-              Buka analisis Skill Gap, Roadmap pengembangan,
-              dan insight yang lebih lengkap untuk membantu
-              kamu mencapai target karier.
+              {t("upgrade.subtitle")}
             </p>
           </div>
 
@@ -190,19 +190,19 @@ export default function UpgradePage() {
 
               <div>
                 <p className="text-xs font-semibold text-slate-400">
-                  Paket saat ini
+                  {t("upgrade.currentPlan")}
                 </p>
 
                 <p className="mt-0.5 text-sm font-bold text-slate-900">
-                  {isPremium ? "Premium" : "Freemium"}
+                  {isPremium ? t("upgrade.premiumPlan") : t("upgrade.freePlan")}
                 </p>
               </div>
             </div>
 
             <p className="text-xs text-slate-400">
               {isPremium
-                ? "Kamu sudah memiliki akses Premium."
-                : "Upgrade untuk membuka seluruh fitur pengembangan."}
+                ? t("upgrade.alreadyPremium")
+                : t("upgrade.subtitle")}
             </p>
           </div>
         </section>
@@ -212,36 +212,34 @@ export default function UpgradePage() {
 
           <PlanCard
             type="free"
-            title="Freemium"
-            subtitle="Untuk mulai mengenal kemampuanmu"
+            title={t("upgrade.freePlan")}
+            subtitle={t("upgrade.freeDescription")}
             price="Rp0"
-            priceSuffix="free"
+            priceSuffix={t("upgrade.free")}
             current={!isPremium}
             features={[
-              "Skill Check",
-              "Hasil pemetaan kompetensi",
-              "Profil kompetensi dasar",
-              "Target karier",
-              "Preview Skill Gap",
-              "Preview fitur pengembangan",
+              t("upgrade.freeFeatureAssessment"),
+              t("upgrade.freeFeatureProfile"),
+              t("upgrade.freeFeatureResult"),
+              t("upgrade.freeFeatureCareer"),
+              t("upgrade.freeFeatureProgress"),
+              t("upgrade.freeFeaturePortfolio"),
             ]}
           />
 
           <PlanCard
             type="premium"
-            title="Premium"
-            subtitle="Untuk pengembangan yang lebih terarah"
+            title={t("upgrade.premiumPlan")}
+            subtitle={t("upgrade.premiumDescription")}
             price="Rp49.000"
-            priceSuffix="/bulan"
+            priceSuffix={t("upgrade.month")}
             current={isPremium}
             recommended
             features={[
-              "Semua fitur Freemium",
-              "Analisis Skill Gap lengkap",
-              "Prioritas kompetensi yang perlu dikembangkan",
-              "Roadmap pengembangan",
-              "Insight pengembangan berdasarkan hasil Skill Check",
-              "Akses penuh fitur Premium",
+              t("upgrade.premiumFeatureAssessment"),
+              t("upgrade.premiumFeatureGap"),
+              t("upgrade.premiumFeaturePriority"),
+              t("upgrade.premiumFeatureRoadmap"),
             ]}
           />
         </section>
@@ -260,17 +258,15 @@ export default function UpgradePage() {
 
                   <div>
                     <p className="text-xs font-bold uppercase tracking-wider text-yellow-700">
-                      Buka Premium
+                      {t("upgrade.premiumPlan")}
                     </p>
 
                     <h2 className="mt-1 text-lg font-bold text-slate-950">
-                      Siap melangkah lebih jauh?
+                      {t("upgrade.title")}
                     </h2>
 
                     <p className="mt-1 max-w-xl text-sm leading-6 text-slate-500">
-                      Dapatkan analisis yang lebih lengkap dan
-                      gunakan hasilnya untuk menentukan langkah
-                      pengembangan berikutnya.
+                      {t("upgrade.subtitle")}
                     </p>
                   </div>
                 </div>
@@ -282,8 +278,8 @@ export default function UpgradePage() {
                   className="inline-flex shrink-0 items-center justify-center gap-2 rounded-xl bg-yellow-500 px-6 py-3.5 text-sm font-bold text-white shadow-lg shadow-yellow-500/20 transition hover:-translate-y-0.5 hover:bg-yellow-600 disabled:cursor-not-allowed disabled:opacity-60"
                 >
                   {paymentLoading
-                    ? "Menyiapkan pembayaran..."
-                    : "Tingkatkan ke Premium"}
+                    ? t("common.loading")
+                    : t("upgrade.upgradeButton")}
 
                   {!paymentLoading && (
                     <ArrowRight size={17} />
@@ -306,16 +302,15 @@ export default function UpgradePage() {
 
               <div>
                 <p className="text-xs font-bold uppercase tracking-wider text-blue-600">
-                  Premium
+                  {t("upgrade.premiumActive")}
                 </p>
 
                 <h2 className="mt-1 text-lg font-bold text-slate-950">
-                  Semua fitur Premium sudah terbuka
+                  {t("upgrade.activeTitle")}
                 </h2>
 
                 <p className="mt-1 text-sm leading-6 text-slate-500">
-                  Kamu sudah dapat menggunakan Skill Gap
-                  dan Roadmap secara penuh.
+                  {t("upgrade.activeDescription")}
                 </p>
               </div>
             </div>
@@ -331,7 +326,7 @@ export default function UpgradePage() {
                 size={14}
                 className="text-emerald-500"
               />
-              Pembayaran aman
+              {t("upgrade.securePayment")}
             </span>
 
             <span className="flex items-center gap-2">
@@ -339,7 +334,7 @@ export default function UpgradePage() {
                 size={14}
                 className="text-emerald-500"
               />
-              Akses Fitur Premium
+              {t("upgrade.instantAccess")}
             </span>
 
           </div>
@@ -373,6 +368,7 @@ function PlanCard({
   current?: boolean;
   recommended?: boolean;
 }) {
+  const { t } = useLanguage();
   const premium = type === "premium";
 
   return (
@@ -388,7 +384,7 @@ function PlanCard({
         <div className="absolute right-5 top-5">
           <span className="inline-flex items-center gap-1.5 rounded-full bg-yellow-50 px-3 py-1.5 text-[10px] font-bold text-yellow-700">
             <Sparkles size={11} />
-            REKOMENDASI
+            {t("upgrade.recommended")}
           </span>
         </div>
       )}
@@ -424,7 +420,7 @@ function PlanCard({
                     : "bg-slate-100 text-slate-500"
                 }`}
               >
-                Paket Saat Ini
+                {t("upgrade.currentPlan")}
               </span>
             )}
           </div>
@@ -451,7 +447,7 @@ function PlanCard({
 
       <div className="mt-6">
         <p className="text-xs font-bold uppercase tracking-wider text-slate-400">
-          Yang kamu dapatkan
+          {t("upgrade.features")}
         </p>
 
         <div className="mt-4 space-y-3">

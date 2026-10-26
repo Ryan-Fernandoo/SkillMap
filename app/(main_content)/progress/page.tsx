@@ -8,6 +8,7 @@ import {
 } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { supabase } from "@/lib/supabase";
+import { useLanguage } from "@/components/language-provider";
 
 type Assessment = {
   id: string;
@@ -59,6 +60,7 @@ type SkillComparison = {
 
 function ProgressPageContent() {
   const router = useRouter();
+  const { t, language } = useLanguage();
   const searchParams = useSearchParams();
 
   const careerId = searchParams.get("career");
@@ -140,7 +142,7 @@ function ProgressPageContent() {
           );
 
           setErrorMessage(
-            "Riwayat assessment gagal dimuat."
+            t("progress.assessmentLoadError")
           );
 
           setLoading(false);
@@ -236,7 +238,7 @@ function ProgressPageContent() {
           );
 
           setErrorMessage(
-            "Data perkembangan skill gagal dimuat."
+            t("progress.skillLoadError")
           );
 
           setLoading(false);
@@ -296,7 +298,7 @@ function ProgressPageContent() {
         );
 
         setErrorMessage(
-          "Terjadi kesalahan saat memuat Progress."
+          t("progress.loadError")
         );
 
         setLoading(false);
@@ -307,6 +309,7 @@ function ProgressPageContent() {
   }, [
     careerId,
     router,
+    t,
   ]);
 
   /* =====================================================
@@ -549,7 +552,7 @@ function ProgressPageContent() {
     }
 
     return new Intl.DateTimeFormat(
-      "id-ID",
+      language === "English" ? "en-US" : "id-ID",
       {
         day: "numeric",
         month: "long",
@@ -567,16 +570,12 @@ function ProgressPageContent() {
   function getAssessmentLabel(
     type: string
   ) {
-    if (
-      type === "baseline"
-    ) {
-      return "Baseline";
+    if (type === "baseline") {
+      return t("progress.baseline");
     }
 
-    if (
-      type === "reassessment"
-    ) {
-      return "Reassessment";
+    if (type === "reassessment") {
+      return t("progress.reassessment");
     }
 
     return type;
@@ -591,7 +590,7 @@ function ProgressPageContent() {
       <main className="min-h-screen bg-gray-50 px-6 py-8">
         <div className="mx-auto max-w-5xl">
           <p className="text-sm text-gray-500">
-            Memuat Progress...
+            {t("progress.loading")}
           </p>
         </div>
       </main>
@@ -610,7 +609,7 @@ function ProgressPageContent() {
           <div className="rounded-xl border bg-white p-8">
 
             <h1 className="text-xl font-bold text-gray-900">
-              Progress & History
+              {t("progress.label")}
             </h1>
 
             <p className="mt-3 text-sm text-red-600">
@@ -626,7 +625,7 @@ function ProgressPageContent() {
               }
               className="mt-6 rounded-lg bg-black px-5 py-3 text-sm font-medium text-white"
             >
-              Kembali ke Skill Check
+              {t("progress.backToSkillCheck")}
             </button>
 
           </div>
@@ -651,17 +650,15 @@ function ProgressPageContent() {
           <div className="rounded-xl border bg-white p-8">
 
             <p className="text-sm font-medium text-gray-500">
-              Progress & History
+              {t("progress.label")}
             </p>
 
             <h1 className="mt-2 text-2xl font-bold text-gray-900">
-              Belum Ada Riwayat Pengukuran
+              {t("progress.noMeasurementHistory")}
             </h1>
 
             <p className="mt-3 max-w-xl text-sm leading-relaxed text-gray-500">
-              Setelah menyelesaikan Skill Check,
-              perkembangan kompetensimu akan
-              tercatat di halaman ini.
+              {t("progress.noMeasurementHistoryDescription")}
             </p>
 
             <button
@@ -673,7 +670,7 @@ function ProgressPageContent() {
               }
               className="mt-6 rounded-lg bg-black px-5 py-3 text-sm font-medium text-white"
             >
-              Mulai Skill Check
+              {t("progress.startSkillCheck")}
             </button>
 
           </div>
@@ -698,16 +695,15 @@ function ProgressPageContent() {
         <div>
 
           <p className="text-sm font-medium text-gray-500">
-            Progress & History
+            {t("progress.label")}
           </p>
 
           <h1 className="mt-2 text-3xl font-bold text-gray-900">
-            Perkembangan Kompetensimu
+            {t("progress.heading")}
           </h1>
 
           <p className="mt-2 max-w-2xl text-gray-500">
-            Lihat perubahan kompetensimu dari
-            satu pengukuran ke pengukuran berikutnya.
+            {t("progress.subtitle")}
           </p>
 
           <div className="mt-4 flex flex-wrap gap-2">
@@ -718,7 +714,7 @@ function ProgressPageContent() {
 
             <span className="rounded-full border bg-white px-3 py-1 text-xs text-gray-600">
               {assessments.length}{" "}
-              pengukuran
+              {t("progress.measurements")}
             </span>
 
           </div>
@@ -736,7 +732,7 @@ function ProgressPageContent() {
             <div>
 
               <p className="text-xs font-medium uppercase tracking-wide text-gray-400">
-                Pengukuran Terbaru
+                {t("progress.latestMeasurement")}
               </p>
 
               <h2 className="mt-2 text-xl font-semibold text-gray-900">
@@ -765,7 +761,7 @@ function ProgressPageContent() {
               <div>
 
                 <p className="text-xs text-gray-400">
-                  Skor rata-rata
+                  {t("progress.averageScore")}
                 </p>
 
                 <p className="mt-1 text-3xl font-bold text-gray-900">
@@ -779,7 +775,7 @@ function ProgressPageContent() {
               <div>
 
                 <p className="text-xs text-gray-400">
-                  Benchmark terpenuhi
+                  {t("progress.benchmarkMet")}
                 </p>
 
                 <p className="mt-1 text-3xl font-bold text-gray-900">
@@ -815,7 +811,7 @@ function ProgressPageContent() {
               <div className="rounded-xl border bg-white p-5">
 
                 <p className="text-sm text-gray-500">
-                  Perubahan skor
+                  {t("progress.scoreChange")}
                 </p>
 
                 <p className="mt-2 text-3xl font-bold text-gray-900">
@@ -826,7 +822,7 @@ function ProgressPageContent() {
                 </p>
 
                 <p className="mt-1 text-xs text-gray-400">
-                  dibanding pengukuran sebelumnya
+                  dibanding {t("progress.measurements")} sebelumnya
                 </p>
 
               </div>
@@ -836,7 +832,7 @@ function ProgressPageContent() {
               <div className="rounded-xl border bg-white p-5">
 
                 <p className="text-sm text-gray-500">
-                  Perubahan total gap
+                  {t("progress.totalGapChange")}
                 </p>
 
                 <p className="mt-2 text-3xl font-bold text-gray-900">
@@ -853,8 +849,7 @@ function ProgressPageContent() {
                 </p>
 
                 <p className="mt-1 text-xs text-gray-400">
-                  semakin kecil semakin dekat
-                  dengan benchmark
+                  {t("progress.gapChangeDescription")}
                 </p>
 
               </div>
@@ -864,7 +859,7 @@ function ProgressPageContent() {
               <div className="rounded-xl border bg-white p-5">
 
                 <p className="text-sm text-gray-500">
-                  Perkembangan terbaik
+                  {t("progress.bestDevelopment")}
                 </p>
 
                 {biggestImprovement &&
@@ -879,22 +874,21 @@ function ProgressPageContent() {
                     </p>
 
                     <p className="mt-1 text-sm text-gray-500">
-                      Naik{" "}
+                      {t("progress.increasedBy")}{" "}
                       <span className="font-semibold text-gray-900">
                         +
                         {
                           biggestImprovement.change
                         }
                       </span>{" "}
-                      poin
+                      {t("progress.points")}
                     </p>
                   </>
 
                 ) : (
 
                   <p className="mt-2 text-sm text-gray-400">
-                    Belum ada peningkatan
-                    skor.
+                    {t("progress.noImprovement")}
                   </p>
 
                 )}
@@ -910,18 +904,15 @@ function ProgressPageContent() {
           <section className="mt-5 rounded-xl border bg-white p-6">
 
             <p className="text-xs font-medium uppercase tracking-wide text-gray-400">
-              Perkembangan
+              {t("progress.development")}
             </p>
 
             <h2 className="mt-2 text-lg font-semibold text-gray-900">
-              Pengukuran pertama berhasil tercatat
+              {t("progress.developmentTitle")}
             </h2>
 
             <p className="mt-2 max-w-2xl text-sm leading-relaxed text-gray-500">
-              Lakukan Skill Check kembali setelah
-              mengembangkan kompetensi untuk melihat
-              perubahan skor dan skill gap dari waktu
-              ke waktu.
+              {t("progress.developmentDescription")}
             </p>
 
           </section>
@@ -940,16 +931,15 @@ function ProgressPageContent() {
             <div>
 
               <p className="text-xs font-medium uppercase tracking-wide text-gray-400">
-                Perubahan per Skill
+                {t("progress.perSkillChanges")}
               </p>
 
               <h2 className="mt-2 text-lg font-semibold text-gray-900">
-                Apa yang berubah?
+                {t("progress.whatChanged")}
               </h2>
 
               <p className="mt-1 text-sm text-gray-500">
-                Perbandingan skor antara pengukuran
-                terbaru dan sebelumnya.
+                {t("progress.skillComparisonDescription")}
               </p>
 
             </div>
@@ -998,7 +988,7 @@ function ProgressPageContent() {
                         <div className="text-right">
 
                           <p className="text-xs text-gray-400">
-                            Gap saat ini
+                            {t("progress.currentGap")}
                           </p>
 
                           <p className="text-sm font-medium text-gray-700">
@@ -1045,13 +1035,13 @@ function ProgressPageContent() {
         <section className="mt-5 rounded-xl border bg-white p-6">
 
           <p className="text-xs font-medium uppercase tracking-wide text-gray-400">
-            Insight Progress
+            {t("progress.insightTitle")}
           </p>
 
           <h2 className="mt-2 text-lg font-semibold text-gray-900">
             {previousSummary
-              ? "Perkembanganmu terus tercatat"
-              : "Perjalanan kompetensimu dimulai dari sini"}
+              ? t("progress.insightContinuedTitle")
+              : t("progress.insightStartedTitle")}
           </h2>
 
           <div className="mt-4 space-y-3">
@@ -1065,25 +1055,15 @@ function ProgressPageContent() {
 
                 <p className="text-sm leading-relaxed text-gray-600">
 
-                  Kompetensi{" "}
-
+                  {t("progress.improvementInsightPrefix")} {" "}
                   <span className="font-medium text-gray-900">
-                    {
-                      biggestImprovement.skillName
-                    }
+                    {biggestImprovement.skillName}
                   </span>{" "}
-
-                  mengalami peningkatan sebesar{" "}
-
+                  {t("progress.improvementInsightText")} {" "}
                   <span className="font-medium text-gray-900">
-                    +
-                    {
-                      biggestImprovement.change
-                    }{" "}
-                    poin
+                    +{biggestImprovement.change} {t("progress.points")}
                   </span>{" "}
-
-                  dibanding pengukuran sebelumnya.
+                  {t("progress.comparedPreviousText")}
 
                 </p>
 
@@ -1098,14 +1078,10 @@ function ProgressPageContent() {
 
                 <p className="text-sm leading-relaxed text-gray-600">
 
-                  Total gap kompetensimu berkurang
-                  sebesar{" "}
-
+                  {t("progress.totalGapReduced")} {" "}
                   <span className="font-medium text-gray-900">
-                    {gapChange} poin
-                  </span>
-                  . Artinya, posisi kompetensimu
-                  semakin dekat dengan benchmark.
+                    {gapChange} {t("progress.points")}
+                  </span>. {t("progress.closerToBenchmark")}
 
                 </p>
 
@@ -1118,9 +1094,7 @@ function ProgressPageContent() {
 
                 <p className="text-sm leading-relaxed text-gray-600">
 
-                  Hasil ini menjadi baseline untuk
-                  mengukur perkembangan kompetensimu
-                  pada pengukuran berikutnya.
+                  {t("progress.baselineInsightText")}
 
                 </p>
 
@@ -1133,24 +1107,14 @@ function ProgressPageContent() {
 
                 <p className="text-sm leading-relaxed text-gray-600">
 
-                  Kompetensi{" "}
-
+                  {t("progress.skill")} {" "}
                   <span className="font-medium text-gray-900">
-                    {
-                      biggestDecline.skillName
-                    }
+                    {biggestDecline.skillName}
                   </span>{" "}
-
-                  mengalami perubahan skor sebesar{" "}
-
+                  {t("progress.declineInsightText")} {" "}
                   <span className="font-medium text-gray-900">
-                    {
-                      biggestDecline.change
-                    }{" "}
-                    poin
-                  </span>
-                  . Kompetensi ini dapat menjadi
-                  perhatian pada pengembangan berikutnya.
+                    {biggestDecline.change} {t("progress.points")}
+                  </span>. {t("progress.declineInsightAttention")}
 
                 </p>
 
@@ -1172,22 +1136,22 @@ function ProgressPageContent() {
             <div>
 
               <p className="text-xs font-medium uppercase tracking-wide text-gray-400">
-                Riwayat
+                {t("progress.history")}
               </p>
 
               <h2 className="mt-2 text-lg font-semibold text-gray-900">
-                Riwayat Pengukuran
+                {t("progress.measurementHistory")}
               </h2>
 
               <p className="mt-1 text-sm text-gray-500">
-                Semua hasil Skill Check untuk career ini.
+                {t("progress.historyCareerDescription")}
               </p>
 
             </div>
 
             <span className="text-xs text-gray-400">
               {assessmentSummaries.length}{" "}
-              pengukuran
+              {t("progress.measurements")}
             </span>
 
           </div>
@@ -1247,7 +1211,7 @@ function ProgressPageContent() {
                       <div>
 
                         <p className="text-[10px] uppercase tracking-wide text-gray-400">
-                          Skor
+                          {t("progress.score")}
                         </p>
 
                         <p className="mt-1 text-lg font-bold text-gray-900">
@@ -1261,7 +1225,7 @@ function ProgressPageContent() {
                       <div>
 
                         <p className="text-[10px] uppercase tracking-wide text-gray-400">
-                          Terpenuhi
+                          {t("progress.met")}
                         </p>
 
                         <p className="mt-1 text-lg font-bold text-gray-900">
@@ -1294,17 +1258,15 @@ function ProgressPageContent() {
         <section className="mt-5 rounded-xl border bg-white p-6">
 
           <p className="text-xs font-medium uppercase tracking-wide text-gray-400">
-            Langkah berikutnya
+            {t("progress.nextStep")}
           </p>
 
           <h2 className="mt-2 text-lg font-semibold text-gray-900">
-            Sudah berkembang? Ukur kembali.
+            {t("progress.measureAgainCtaTitle")}
           </h2>
 
           <p className="mt-2 max-w-2xl text-sm leading-relaxed text-gray-500">
-            Lakukan Skill Check kembali setelah
-            mengembangkan kompetensi untuk memperbarui
-            profil, skill gap, roadmap, dan progress-mu.
+            {t("progress.measureAgainCtaDescription")}
           </p>
 
           <button
@@ -1316,7 +1278,7 @@ function ProgressPageContent() {
             }
             className="mt-5 rounded-lg bg-black px-5 py-3 text-sm font-medium text-white transition hover:bg-gray-800"
           >
-            Ukur Kompetensi Lagi
+            {t("progress.measureAgain")}
           </button>
 
         </section>
@@ -1326,18 +1288,24 @@ function ProgressPageContent() {
   );
 }
 
+function ProgressLoadingFallback() {
+  const { t } = useLanguage();
+
+  return (
+    <main className="min-h-screen bg-gray-50 px-6 py-8">
+      <div className="mx-auto max-w-5xl">
+        <p className="text-sm text-gray-500">
+          {t("progress.loading")}
+        </p>
+      </div>
+    </main>
+  );
+}
+
 export default function ProgressPage() {
   return (
     <Suspense
-      fallback={
-        <main className="min-h-screen bg-gray-50 px-6 py-8">
-          <div className="mx-auto max-w-5xl">
-            <p className="text-sm text-gray-500">
-              Memuat Progress...
-            </p>
-          </div>
-        </main>
-      }
+      fallback={<ProgressLoadingFallback />}
     >
       <ProgressPageContent />
     </Suspense>

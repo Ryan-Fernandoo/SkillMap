@@ -1,23 +1,29 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { ChangeEvent, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import {
+  Camera,
+  Check,
+  ChevronDown,
+  Globe2,
+  LockKeyhole,
+  Save,
+  ShieldCheck,
+  UserRound,
+} from "lucide-react";
+
 import { supabase } from "@/lib/supabase";
+import { useLanguage } from "@/components/language-provider";
 
 type Language = "Indonesia" | "English";
-type Theme = "Light" | "Dark" | "System";
 
 export default function SettingsPage() {
   const router = useRouter();
+  const { language, setLanguage, t } = useLanguage();
 
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
-
-  const [language, setLanguage] =
-    useState<Language>("Indonesia");
-
-  const [theme, setTheme] =
-    useState<Theme>("Light");
 
   const [photoPreview, setPhotoPreview] =
     useState<string | null>(null);
@@ -30,87 +36,15 @@ export default function SettingsPage() {
   const [saved, setSaved] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
 
-  /* =========================
-     LOAD SETTINGS
-  ========================= */
-
-  useEffect(() => {
-    const savedLanguage =
-      localStorage.getItem("skillmap-language");
-
-    const savedTheme =
-      localStorage.getItem("skillmap-theme");
-
-    if (
-      savedLanguage === "Indonesia" ||
-      savedLanguage === "English"
-    ) {
-      setLanguage(savedLanguage);
-    }
-
-    if (
-      savedTheme === "Light" ||
-      savedTheme === "Dark" ||
-      savedTheme === "System"
-    ) {
-      setTheme(savedTheme);
-    }
-  }, []);
-
-  /* =========================
-     APPLY THEME
-  ========================= */
-
-  useEffect(() => {
-    const root = document.documentElement;
-
-    function applyTheme(isDark: boolean) {
-      if (isDark) {
-        root.classList.add("dark");
-      } else {
-        root.classList.remove("dark");
-      }
-    }
-
-    if (theme === "Dark") {
-      applyTheme(true);
-    }
-
-    if (theme === "Light") {
-      applyTheme(false);
-    }
-
-    if (theme === "System") {
-      const mediaQuery = window.matchMedia(
-        "(prefers-color-scheme: dark)"
-      );
-
-      applyTheme(mediaQuery.matches);
-
-      const handleChange = (
-        event: MediaQueryListEvent
-      ) => {
-        applyTheme(event.matches);
-      };
-
-      mediaQuery.addEventListener(
-        "change",
-        handleChange
-      );
-
-      return () => {
-        mediaQuery.removeEventListener(
-          "change",
-          handleChange
-        );
-      };
-    }
-
-    localStorage.setItem(
-      "skillmap-theme",
-      theme
-    );
-  }, [theme]);
+  const [showPasswordForm, setShowPasswordForm] =
+    useState(false);
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] =
+    useState("");
+  const [changingPassword, setChangingPassword] =
+    useState(false);
+  const [passwordMessage, setPasswordMessage] =
+    useState("");
 
   /* =========================
      LOAD USER PROFILE
@@ -153,9 +87,7 @@ export default function SettingsPage() {
         setName(profile.name ?? "");
 
         if (profile.profile_photo_url) {
-          setPhotoPreview(
-            profile.profile_photo_url
-          );
+          setPhotoPreview(profile.profile_photo_url);
         }
       }
 
@@ -166,11 +98,11 @@ export default function SettingsPage() {
   }, [router]);
 
   /* =========================
-     PHOTO PREVIEW
+     PHOTO CHANGE
   ========================= */
 
   function handlePhotoChange(
-    event: React.ChangeEvent<HTMLInputElement>
+    event: ChangeEvent<HTMLInputElement>
   ) {
     const file = event.target.files?.[0];
 
@@ -179,17 +111,15 @@ export default function SettingsPage() {
     setErrorMessage("");
     setSaved(false);
 
-    // Maksimal 15 MB
     if (file.size > 15 * 1024 * 1024) {
       setErrorMessage(
-        "Ukuran foto maksimal 15 MB."
+        t("settings.errors.photoSize")
       );
 
       event.target.value = "";
       return;
     }
 
-    // Format yang diperbolehkan
     const allowedTypes = [
       "image/jpeg",
       "image/png",
@@ -197,7 +127,7 @@ export default function SettingsPage() {
 
     if (!allowedTypes.includes(file.type)) {
       setErrorMessage(
-        "Format foto harus JPEG, JPG, atau PNG."
+        t("settings.errors.photoType")
       );
 
       event.target.value = "";
@@ -211,7 +141,7 @@ export default function SettingsPage() {
   }
 
   /* =========================
-     SAVE SETTINGS
+     SAVE PROFILE
   ========================= */
 
   async function handleSave() {
@@ -231,10 +161,6 @@ export default function SettingsPage() {
 
       let profilePhotoUrl: string | null =
         photoPreview;
-
-      /* =========================
-         UPLOAD FOTO
-      ========================= */
 
       if (selectedPhoto) {
         const fileExtension =
@@ -267,7 +193,7 @@ export default function SettingsPage() {
           );
 
           throw new Error(
-            "Foto gagal diupload. Coba lagi."
+            t("settings.errors.photoUpload")
           );
         }
 
@@ -280,10 +206,6 @@ export default function SettingsPage() {
         profilePhotoUrl =
           publicUrlData.publicUrl;
       }
-
-      /* =========================
-         UPDATE USER PROFILE
-      ========================= */
 
       const {
         error: updateError,
@@ -303,36 +225,29 @@ export default function SettingsPage() {
         );
 
         throw new Error(
-          "Profil gagal disimpan."
+          t("settings.errors.profileSave")
         );
       }
-
-      /* =========================
-         SAVE PREFERENCES
-      ========================= */
 
       localStorage.setItem(
         "skillmap-language",
         language
       );
 
-      localStorage.setItem(
-        "skillmap-theme",
-        theme
+      window.dispatchEvent(
+        new Event("skillmap-language-updated")
       );
-
-      /* =========================
-         UPDATE PREVIEW
-      ========================= */
 
       if (profilePhotoUrl) {
         setPhotoPreview(profilePhotoUrl);
       }
 
       setSelectedPhoto(null);
+
       window.dispatchEvent(
         new Event("skillmap-profile-updated")
       );
+
       setSaved(true);
 
       setTimeout(() => {
@@ -345,7 +260,7 @@ export default function SettingsPage() {
         setErrorMessage(error.message);
       } else {
         setErrorMessage(
-          "Terjadi kesalahan saat menyimpan pengaturan."
+          t("settings.errors.general")
         );
       }
     } finally {
@@ -354,12 +269,97 @@ export default function SettingsPage() {
   }
 
   /* =========================
-     LOGOUT
+     CHANGE PASSWORD
   ========================= */
 
-  async function handleLogout() {
-    await supabase.auth.signOut();
-    router.push("/login");
+  async function handleChangePassword() {
+    setPasswordMessage("");
+
+    if (!newPassword || !confirmPassword) {
+      setPasswordMessage(
+        language === "English"
+          ? "Please fill in both password fields."
+          : "Silakan isi kedua kolom password."
+      );
+      return;
+    }
+
+    if (newPassword.length < 6) {
+      setPasswordMessage(
+        language === "English"
+          ? "Password must be at least 6 characters."
+          : "Password minimal 6 karakter."
+      );
+      return;
+    }
+
+    if (newPassword !== confirmPassword) {
+      setPasswordMessage(
+        language === "English"
+          ? "Passwords do not match."
+          : "Password tidak cocok."
+      );
+      return;
+    }
+
+    setChangingPassword(true);
+
+    try {
+      const {
+        data: { user },
+        error: userError,
+      } = await supabase.auth.getUser();
+
+      if (userError || !user) {
+        router.push("/login");
+        return;
+      }
+
+      const { error } =
+        await supabase.auth.updateUser({
+          password: newPassword,
+        });
+
+      if (error) {
+        console.error(
+          "Gagal mengubah password:",
+          error
+        );
+
+        setPasswordMessage(
+          error.message ||
+            (language === "English"
+              ? "Failed to change password."
+              : "Gagal mengubah password.")
+        );
+
+        return;
+      }
+
+      setNewPassword("");
+      setConfirmPassword("");
+
+      setPasswordMessage(
+        language === "English"
+          ? "Password changed successfully."
+          : "Password berhasil diubah."
+      );
+
+      setTimeout(() => {
+        setShowPasswordForm(false);
+        setPasswordMessage("");
+      }, 2500);
+    } catch (error) {
+      console.error(error);
+
+      setPasswordMessage(
+        language === "English"
+          ? "Something went wrong. Please try again."
+          : "Terjadi kesalahan. Silakan coba lagi."
+      );
+    } finally {
+      setChangingPassword(false);
+    }
   }
 
   /* =========================
@@ -368,310 +368,466 @@ export default function SettingsPage() {
 
   if (loading) {
     return (
-      <main className="min-h-screen bg-gray-50 text-gray-900 dark:bg-gray-950 dark:text-gray-100">
-        <div className="mx-auto max-w-4xl px-6 py-10">
-          <p className="text-sm text-gray-500">
-            Memuat pengaturan...
-          </p>
+      <main className="min-h-screen bg-[#f7faff] px-4 py-6 sm:px-6 sm:py-8">
+        <div className="mx-auto max-w-5xl animate-pulse">
+          <div className="h-8 w-40 rounded-lg bg-slate-200" />
+
+          <div className="mt-3 h-4 w-80 max-w-full rounded bg-slate-100" />
+
+          <div className="mt-8 h-80 rounded-[26px] bg-white" />
+
+          <div className="mt-6 h-40 rounded-[26px] bg-white" />
+
+          <div className="mt-6 h-32 rounded-[26px] bg-white" />
         </div>
       </main>
     );
   }
 
   return (
-    <main className="min-h-screen bg-gray-50 text-gray-900 transition-colors duration-300 dark:bg-gray-950 dark:text-gray-100">
-      <div className="mx-auto max-w-4xl px-6 py-10">
+    <main className="min-h-screen bg-[#f7faff] px-4 py-6 sm:px-6 sm:py-8">
+      <div className="mx-auto max-w-5xl">
 
         {/* HEADER */}
 
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold">
-            Settings
-          </h1>
-
-          <p className="mt-2 text-gray-600 dark:text-gray-400">
-            Kelola profil, preferensi, dan keamanan akunmu.
-          </p>
-        </div>
-
-        {/* =========================
-            PROFIL AKUN
-        ========================= */}
-
-        <section className="mb-6 rounded-2xl border bg-white p-6 dark:border-gray-800 dark:bg-gray-900">
-
-          <h2 className="text-xl font-semibold">
-            Profil Akun
-          </h2>
-
-          <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
-            Atur identitas dan tampilan profilmu.
-          </p>
-
-          {/* FOTO PROFIL */}
-
-          <div className="mt-6">
-
-            <label className="text-sm font-medium">
-              Foto Profil
-            </label>
-
-            <div className="mt-4 rounded-xl border border-dashed p-8 text-center dark:border-gray-700">
-
-              {photoPreview ? (
-                <>
-                  <img
-                    src={photoPreview}
-                    alt="Preview foto profil"
-                    className="mx-auto h-40 w-40 rounded-full object-cover"
-                  />
-
-                  <p className="mt-4 text-sm font-medium">
-                    Foto profil
-                  </p>
-
-                  <p className="mt-1 text-xs text-gray-500">
-                    Foto akan digunakan di profil dan sidebar.
-                  </p>
-                </>
-              ) : (
-                <>
-                  <div className="text-4xl">
-                    📷
-                  </div>
-
-                  <h3 className="mt-3 font-medium">
-                    Upload Foto Profil
-                  </h3>
-
-                  <p className="mt-1 text-sm text-gray-500">
-                    Pilih foto dari perangkatmu.
-                  </p>
-                </>
-              )}
-
-              <label className="mt-5 inline-flex cursor-pointer rounded-lg bg-black px-5 py-2.5 text-sm font-medium text-white transition hover:bg-gray-800 dark:bg-white dark:text-black dark:hover:bg-gray-200">
-
-                {photoPreview
-                  ? "Ganti Foto"
-                  : "Pilih Foto"}
-
-                <input
-                  type="file"
-                  accept="image/jpeg,image/png"
-                  onChange={handlePhotoChange}
-                  className="hidden"
-                />
-
-              </label>
-
-              <p className="mt-3 text-xs text-gray-400">
-                JPEG, JPG, atau PNG · Maksimal 15 MB
-              </p>
-
+        <header className="mb-8">
+          <div className="flex items-center gap-3">
+            <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-blue-50 text-blue-600">
+              <UserRound size={21} />
             </div>
 
+            <div>
+              <p className="text-xs font-bold uppercase tracking-wider text-blue-600">
+                {t("settings.label")}
+              </p>
+
+              <h1 className="mt-1 text-3xl font-bold tracking-tight text-slate-950">
+                {t("settings.title")}
+              </h1>
+            </div>
           </div>
 
-          {/* NAMA */}
+          <p className="mt-3 max-w-2xl text-sm leading-6 text-slate-500">
+            {t("settings.subtitle")}
+          </p>
+        </header>
+
+        {/* PROFILE */}
+
+        <section className="rounded-[26px] border border-slate-200 bg-white p-6 shadow-[0_10px_30px_rgba(15,23,42,0.035)] sm:p-7">
+
+          <div>
+            <h2 className="text-xl font-bold text-slate-950">
+              {t("settings.profile.title")}
+            </h2>
+
+            <p className="mt-1 text-sm text-slate-500">
+              {t("settings.profile.description")}
+            </p>
+          </div>
+
+          {/* FOTO */}
+
+          <div className="mt-7">
+            <label className="text-sm font-semibold text-slate-800">
+              {t("settings.profile.photo")}
+            </label>
+
+            <div className="mt-3 rounded-2xl border border-dashed border-slate-200 bg-slate-50/60 p-6 sm:p-7">
+              <div className="flex flex-col items-center text-center">
+
+                {photoPreview ? (
+                  <img
+                    src={photoPreview}
+                    alt={t(
+                      "settings.profile.photoPreview"
+                    )}
+                    className="h-28 w-28 rounded-full object-cover ring-4 ring-white shadow-md"
+                  />
+                ) : (
+                  <div className="flex h-28 w-28 items-center justify-center rounded-full bg-blue-50 text-blue-600">
+                    <Camera size={30} />
+                  </div>
+                )}
+
+                <h3 className="mt-4 text-sm font-bold text-slate-900">
+                  {photoPreview
+                    ? t(
+                        "settings.profile.photoReady"
+                      )
+                    : t(
+                        "settings.profile.uploadTitle"
+                      )}
+                </h3>
+
+                <p className="mt-1 max-w-sm text-xs leading-5 text-slate-500">
+                  {t(
+                    "settings.profile.uploadDescription"
+                  )}
+                </p>
+
+                <label className="mt-4 inline-flex cursor-pointer items-center gap-2 rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-blue-700">
+                  <Camera size={16} />
+
+                  {photoPreview
+                    ? t(
+                        "settings.profile.changePhoto"
+                      )
+                    : t(
+                        "settings.profile.choosePhoto"
+                      )}
+
+                  <input
+                    type="file"
+                    accept="image/jpeg,image/png"
+                    onChange={handlePhotoChange}
+                    className="hidden"
+                  />
+                </label>
+
+                <p className="mt-3 text-[11px] text-slate-400">
+                  {t(
+                    "settings.profile.photoHint"
+                  )}
+                </p>
+              </div>
+            </div>
+          </div>
+
+          {/* NAME */}
 
           <div className="mt-6">
-
-            <label className="text-sm font-medium">
-              Nama
+            <label
+              htmlFor="settings-name"
+              className="text-sm font-semibold text-slate-800"
+            >
+              {t("settings.profile.name")}
             </label>
 
             <input
+              id="settings-name"
               value={name}
-              onChange={(e) =>
-                setName(e.target.value)
+              onChange={(event) =>
+                setName(event.target.value)
               }
-              placeholder="Masukkan nama"
-              className="mt-2 w-full rounded-lg border bg-white px-4 py-3 text-sm outline-none transition focus:border-gray-500 dark:border-gray-700 dark:bg-gray-900"
+              placeholder={t(
+                "settings.profile.namePlaceholder"
+              )}
+              className="mt-2 w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-blue-400 focus:ring-4 focus:ring-blue-50"
             />
-
           </div>
 
           {/* EMAIL */}
 
           <div className="mt-5">
-
-            <label className="text-sm font-medium">
-              Email
+            <label
+              htmlFor="settings-email"
+              className="text-sm font-semibold text-slate-800"
+            >
+              {t("settings.profile.email")}
             </label>
 
             <input
+              id="settings-email"
               value={email}
               disabled
-              className="mt-2 w-full rounded-lg border bg-gray-100 px-4 py-3 text-sm text-gray-500 dark:border-gray-700 dark:bg-gray-800"
+              className="mt-2 w-full cursor-not-allowed rounded-xl border border-slate-200 bg-slate-100 px-4 py-3 text-sm text-slate-500 outline-none"
             />
 
-            <p className="mt-1 text-xs text-gray-400">
-              Email digunakan sebagai identitas akun.
+            <p className="mt-2 text-xs text-slate-400">
+              {t("settings.profile.emailHint")}
             </p>
-
           </div>
 
+          {/* ERROR */}
+
+          {errorMessage && (
+            <div className="mt-5 rounded-xl border border-red-100 bg-red-50 px-4 py-3 text-sm text-red-600">
+              {errorMessage}
+            </div>
+          )}
+
+          {/* SAVE */}
+
+          <div className="mt-6 flex flex-col-reverse gap-3 border-t border-slate-100 pt-5 sm:flex-row sm:items-center sm:justify-between">
+
+            <div className="min-h-5">
+              {saved && (
+                <p className="flex items-center gap-1.5 text-sm font-medium text-emerald-600">
+                  <Check size={16} />
+                  {t("settings.saved")}
+                </p>
+              )}
+            </div>
+
+            <button
+              type="button"
+              onClick={handleSave}
+              disabled={saving}
+              className="inline-flex items-center justify-center gap-2 rounded-xl bg-blue-600 px-5 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              <Save size={16} />
+
+              {saving
+                ? t("settings.saving")
+                : t("settings.save")}
+            </button>
+          </div>
         </section>
 
-        {/* =========================
-            PREFERENSI
-        ========================= */}
+        {/* PREFERENCES */}
 
-        <section className="mb-6 rounded-2xl border bg-white p-6 dark:border-gray-800 dark:bg-gray-900">
+        <section className="mt-6 rounded-[26px] border border-slate-200 bg-white p-6 shadow-[0_10px_30px_rgba(15,23,42,0.035)] sm:p-7">
 
-          <h2 className="text-xl font-semibold">
-            Preferensi
-          </h2>
-
-          <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
-            Atur pengalaman penggunaan SkillMap.
-          </p>
-
-          <div className="mt-6 grid gap-5 md:grid-cols-2">
-
-            {/* BAHASA */}
+          <div className="flex items-start gap-3">
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-blue-50 text-blue-600">
+              <Globe2 size={19} />
+            </div>
 
             <div>
+              <h2 className="text-xl font-bold text-slate-950">
+                {t("settings.preferences.title")}
+              </h2>
 
-              <label className="text-sm font-medium">
-                Bahasa
-              </label>
+              <p className="mt-1 text-sm text-slate-500">
+                {t(
+                  "settings.preferences.description"
+                )}
+              </p>
+            </div>
+          </div>
 
+          <div className="mt-6 max-w-xl">
+            <label
+              htmlFor="language"
+              className="text-sm font-semibold text-slate-800"
+            >
+              {t("settings.preferences.language")}
+            </label>
+
+            <div className="relative mt-2">
               <select
+                id="language"
                 value={language}
-                onChange={(e) =>
+                onChange={(event) =>
                   setLanguage(
-                    e.target.value as Language
+                    event.target.value as Language
                   )
                 }
-                className="mt-2 w-full rounded-lg border bg-white px-4 py-3 text-sm dark:border-gray-700 dark:bg-gray-900"
+                className="w-full appearance-none rounded-xl border border-slate-200 bg-white px-4 py-3 pr-10 text-sm text-slate-900 outline-none transition focus:border-blue-400 focus:ring-4 focus:ring-blue-50"
               >
                 <option value="Indonesia">
-                  Indonesia
+                  🇮🇩 Indonesia
                 </option>
 
                 <option value="English">
-                  English
+                  🇬🇧 English
                 </option>
               </select>
 
+              <ChevronDown
+                size={17}
+                className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-slate-400"
+              />
             </div>
 
-            {/* TAMPILAN */}
+            <p className="mt-2 text-xs text-slate-400">
+              {t(
+                "settings.preferences.languageHint"
+              )}
+            </p>
+          </div>
+        </section>
+
+        {/* SECURITY */}
+
+        <section className="mt-6 rounded-[26px] border border-slate-200 bg-white p-6 shadow-[0_10px_30px_rgba(15,23,42,0.035)] sm:p-7">
+
+          <div className="flex items-start gap-3">
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-slate-100 text-slate-700">
+              <ShieldCheck size={19} />
+            </div>
 
             <div>
+              <h2 className="text-xl font-bold text-slate-950">
+                {t("settings.security.title")}
+              </h2>
 
-              <label className="text-sm font-medium">
-                Tampilan
-              </label>
+              <p className="mt-1 text-sm text-slate-500">
+                {t(
+                  "settings.security.description"
+                )}
+              </p>
+            </div>
+          </div>
 
-              <select
-                value={theme}
-                onChange={(e) =>
-                  setTheme(
-                    e.target.value as Theme
-                  )
-                }
-                className="mt-2 w-full rounded-lg border bg-white px-4 py-3 text-sm dark:border-gray-700 dark:bg-gray-900"
+          <div className="mt-6 rounded-2xl border border-slate-100 bg-slate-50/70 p-4">
+
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+
+              <div className="flex items-center gap-3">
+                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-white text-slate-600 shadow-sm">
+                  <LockKeyhole size={18} />
+                </div>
+
+                <div>
+                  <p className="text-sm font-semibold text-slate-900">
+                    {t(
+                      "settings.security.password"
+                    )}
+                  </p>
+
+                  <p className="mt-0.5 text-xs text-slate-500">
+                    {t(
+                      "settings.security.passwordDescription"
+                    )}
+                  </p>
+                </div>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => {
+                  setShowPasswordForm(
+                    (current) => !current
+                  );
+                  setPasswordMessage("");
+                  setNewPassword("");
+                  setConfirmPassword("");
+                }}
+                className="inline-flex items-center justify-center rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
               >
-                <option value="Light">
-                  Light
-                </option>
-
-                <option value="Dark">
-                  Dark
-                </option>
-
-                <option value="System">
-                  System
-                </option>
-              </select>
-
+                {showPasswordForm
+                  ? language === "English"
+                    ? "Cancel"
+                    : "Batal"
+                  : t(
+                      "settings.security.changePassword"
+                    )}
+              </button>
             </div>
 
+            {showPasswordForm && (
+              <div className="mt-5 border-t border-slate-200 pt-5">
+
+                <div className="grid gap-4 sm:grid-cols-2">
+
+                  <div>
+                    <label
+                      htmlFor="new-password"
+                      className="text-sm font-semibold text-slate-800"
+                    >
+                      {language === "English"
+                        ? "New Password"
+                        : "Password Baru"}
+                    </label>
+
+                    <input
+                      id="new-password"
+                      type="password"
+                      value={newPassword}
+                      onChange={(event) =>
+                        setNewPassword(
+                          event.target.value
+                        )
+                      }
+                      placeholder={
+                        language === "English"
+                          ? "Enter new password"
+                          : "Masukkan password baru"
+                      }
+                      autoComplete="new-password"
+                      className="mt-2 w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-blue-400 focus:ring-4 focus:ring-blue-50"
+                    />
+                  </div>
+
+                  <div>
+                    <label
+                      htmlFor="confirm-password"
+                      className="text-sm font-semibold text-slate-800"
+                    >
+                      {language === "English"
+                        ? "Confirm Password"
+                        : "Konfirmasi Password"}
+                    </label>
+
+                    <input
+                      id="confirm-password"
+                      type="password"
+                      value={confirmPassword}
+                      onChange={(event) =>
+                        setConfirmPassword(
+                          event.target.value
+                        )
+                      }
+                      placeholder={
+                        language === "English"
+                          ? "Repeat new password"
+                          : "Ulangi password baru"
+                      }
+                      autoComplete="new-password"
+                      className="mt-2 w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-blue-400 focus:ring-4 focus:ring-blue-50"
+                    />
+                  </div>
+                </div>
+
+                <p className="mt-3 text-xs text-slate-400">
+                  {language === "English"
+                    ? "Password must contain at least 6 characters."
+                    : "Password harus memiliki minimal 6 karakter."}
+                </p>
+
+                {passwordMessage && (
+                  <div
+                    className={`mt-4 rounded-xl border px-4 py-3 text-sm ${
+                      passwordMessage
+                        .toLowerCase()
+                        .includes("success") ||
+                      passwordMessage
+                        .toLowerCase()
+                        .includes("berhasil")
+                        ? "border-emerald-100 bg-emerald-50 text-emerald-600"
+                        : "border-red-100 bg-red-50 text-red-600"
+                    }`}
+                  >
+                    {passwordMessage}
+                  </div>
+                )}
+
+                <div className="mt-5 flex justify-end">
+                  <button
+                    type="button"
+                    onClick={handleChangePassword}
+                    disabled={changingPassword}
+                    className="inline-flex items-center justify-center gap-2 rounded-xl bg-blue-600 px-5 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
+                  >
+                    {changingPassword ? (
+                      <>
+                        <span className="h-4 w-4 animate-spin rounded-full border-2 border-white/30 border-t-white" />
+
+                        {language === "English"
+                          ? "Updating..."
+                          : "Mengubah..."}
+                      </>
+                    ) : (
+                      <>
+                        <Check size={16} />
+
+                        {language === "English"
+                          ? "Update Password"
+                          : "Ubah Password"}
+                      </>
+                    )}
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
-
         </section>
 
-        {/* =========================
-            KEAMANAN
-        ========================= */}
-
-        <section className="mb-6 rounded-2xl border bg-white p-6 dark:border-gray-800 dark:bg-gray-900">
-
-          <h2 className="text-xl font-semibold">
-            Keamanan
-          </h2>
-
-          <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
-            Kelola keamanan akunmu.
-          </p>
-
-          <button
-            type="button"
-            className="mt-5 rounded-lg border px-5 py-3 text-sm font-medium transition hover:bg-gray-50 dark:border-gray-700 dark:hover:bg-gray-800"
-          >
-            Ubah Password
-          </button>
-
-        </section>
-
-        {/* =========================
-            AKUN
-        ========================= */}
-
-        <section className="mb-6 rounded-2xl border bg-white p-6 dark:border-gray-800 dark:bg-gray-900">
-
-          <h2 className="text-xl font-semibold">
-            Akun
-          </h2>
-
-          <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
-            Kelola sesi akun SkillMap.
-          </p>
-
-          <button
-            type="button"
-            onClick={handleLogout}
-            className="mt-5 rounded-lg border border-red-200 px-5 py-3 text-sm font-medium text-red-600 transition hover:bg-red-50 dark:border-red-900 dark:hover:bg-red-950"
-          >
-            Logout
-          </button>
-
-        </section>
-
-        {/* ERROR */}
-
-        {errorMessage && (
-          <div className="mb-5 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-600 dark:border-red-900 dark:bg-red-950">
-            {errorMessage}
-          </div>
-        )}
-
-        {/* SAVE */}
-
-        <div className="flex justify-end gap-4 pb-10">
-
-          {saved && (
-            <p className="self-center text-sm text-green-600">
-              Pengaturan berhasil disimpan.
-            </p>
-          )}
-
-          <button
-            type="button"
-            onClick={handleSave}
-            disabled={saving}
-            className="rounded-lg bg-black px-6 py-3 text-sm font-medium text-white transition hover:bg-gray-800 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-white dark:text-black dark:hover:bg-gray-200"
-          >
-            {saving
-              ? "Menyimpan..."
-              : "Simpan Pengaturan"}
-          </button>
-
-        </div>
-
+        <p className="py-8 text-center text-xs text-slate-400">
+          SkillMap
+        </p>
       </div>
     </main>
   );

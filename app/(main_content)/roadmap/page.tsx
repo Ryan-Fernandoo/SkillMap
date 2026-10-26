@@ -6,7 +6,7 @@ import {
   Lock,
   Sparkles,
   Target,
-  X,
+  TrendingUp,
 } from "lucide-react";
 
 import {
@@ -23,6 +23,7 @@ import {
 
 import { supabase } from "@/lib/supabase";
 import { isPremiumUser } from "@/lib/subscription";
+import { useLanguage } from "@/components/language-provider";
 
 /* =========================================================
    TYPES
@@ -58,94 +59,61 @@ type Skill = {
   name: string;
 };
 
-type Roadmap = {
-  id: number;
-  user_id: string;
-  career_id: string;
-  assessment_id: string;
+type CareerSkill = {
   skill_id: string;
-  title: string;
-  description: string;
-  priority: number;
-  status: string;
-  recommendation_type: string;
-  created_at: string;
-  updated_at: string;
+  target_score: number;
+  importance: number;
 };
 
-type RoadmapCard = {
+type PriorityLevel =
+  | "critical"
+  | "high"
+  | "medium";
+
+type PriorityItem = {
   skillId: string;
   skillName: string;
   score: number;
-  targetScore: number;
+  target: number;
   gap: number;
-  roadmapItems: Roadmap[];
+  importance: number;
+  priorityScore: number;
+  priorityLevel: PriorityLevel;
 };
 
 /* =========================================================
    HELPERS
 ========================================================= */
 
-function getStatusLabel(status: string) {
-  const normalized = status.toLowerCase();
+function calculatePriorityScore(
+  gap: number,
+  importance: number
+) {
+  const safeGap = Math.max(
+    0,
+    Math.min(gap, 100)
+  );
 
-  if (
-    normalized === "completed" ||
-    normalized === "complete" ||
-    normalized === "done"
-  ) {
-    return "Selesai";
-  }
+  const safeImportance = Math.max(
+    1,
+    Math.min(importance, 5)
+  );
 
-  if (
-    normalized === "in_progress" ||
-    normalized === "in-progress" ||
-    normalized === "progress"
-  ) {
-    return "Sedang Berjalan";
-  }
-
-  if (
-    normalized === "pending" ||
-    normalized === "not_started"
-  ) {
-    return "Belum Dimulai";
-  }
-
-  return status || "Belum Dimulai";
+  return safeGap * (safeImportance / 5);
 }
 
-function getRecommendationLabel(
-  recommendationType: string
-) {
-  if (!recommendationType) {
-    return "";
+function getPriorityLevel(
+  priorityScore: number
+): PriorityLevel {
+  if (priorityScore >= 60) {
+    return "critical";
   }
 
-  const normalized =
-    recommendationType.toLowerCase();
-
-  if (
-    normalized.includes("course") ||
-    normalized.includes("learning")
-  ) {
-    return "Belajar";
+  if (priorityScore >= 35) {
+    return "high";
   }
 
-  if (
-    normalized.includes("project") ||
-    normalized.includes("practice")
-  ) {
-    return "Praktik";
-  }
-
-  if (
-    normalized.includes("experience")
-  ) {
-    return "Pengalaman";
-  }
-
-  return recommendationType;
+  return "medium";
 }
 
 /* =========================================================
@@ -155,16 +123,13 @@ function getRecommendationLabel(
 function RoadmapPageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const { t } = useLanguage();
 
   const careerId =
     searchParams.get("career");
 
   const assessmentId =
     searchParams.get("assessment");
-
-  /* =======================================================
-     STATE
-  ======================================================= */
 
   const [career, setCareer] =
     useState<Career | null>(null);
@@ -178,11 +143,8 @@ function RoadmapPageContent() {
   const [skills, setSkills] =
     useState<Skill[]>([]);
 
-  const [roadmaps, setRoadmaps] =
-    useState<Roadmap[]>([]);
-
-  const [selectedCard, setSelectedCard] =
-    useState<RoadmapCard | null>(null);
+  const [careerSkills, setCareerSkills] =
+    useState<CareerSkill[]>([]);
 
   const [isPremium, setIsPremium] =
     useState(false);
@@ -202,12 +164,9 @@ function RoadmapPageContent() {
   const [aiRoadmapError, setAiRoadmapError] =
     useState("");
 
-  const [aiRoadmapAssessmentId, setAiRoadmapAssessmentId] =
-    useState<string | null>(null);
-
-  /* =========================================================
+  /* =======================================================
      LOAD DATA
-  ========================================================= */
+  ======================================================= */
 
   useEffect(() => {
     async function loadRoadmap() {
@@ -215,10 +174,6 @@ function RoadmapPageContent() {
       setErrorMessage("");
 
       try {
-        /* =========================
-           USER
-        ========================= */
-
         const {
           data: { user },
         } = await supabase.auth.getUser();
@@ -228,29 +183,86 @@ function RoadmapPageContent() {
           return;
         }
 
-        /* =========================
-           SUBSCRIPTION
-        ========================= */
-
         const premium =
           await isPremiumUser();
 
         setIsPremium(premium);
 
         /* =========================
-           FIND CAREER
+           ASSESSMENT
         ========================= */
+
+        let selectedAssessmentId =
+          assessmentId;
 
         let selectedCareerId =
           careerId;
 
-        if (!selectedCareerId) {
+        if (!selectedAssessmentId) {
+          let query =
+            supabase
+              .from("assessments")
+              .select(
+                "id, career_id, attempt_number, assessment_type, status, completed_at"
+              )
+              .eq(
+                "user_id",
+                user.id
+              )
+              .eq(
+                "status",
+                "completed"
+              )
+              .order(
+                "completed_at",
+                {
+                  ascending: false,
+                }
+              )
+              .limit(1);
+
+          if (selectedCareerId) {
+            query = query.eq(
+              "career_id",
+              selectedCareerId
+            );
+          }
+
           const {
-            data: latestAssessment,
+            data,
+            error,
+          } = await query;
+
+          if (error) {
+            throw error;
+          }
+
+          const latest =
+            data?.[0];
+
+          if (latest) {
+            selectedAssessmentId =
+              latest.id;
+
+            selectedCareerId =
+              latest.career_id;
+
+            setAssessment(
+              latest
+            );
+          }
+        } else {
+          const {
+            data,
+            error,
           } = await supabase
             .from("assessments")
             .select(
               "id, career_id, attempt_number, assessment_type, status, completed_at"
+            )
+            .eq(
+              "id",
+              selectedAssessmentId
             )
             .eq(
               "user_id",
@@ -260,19 +272,32 @@ function RoadmapPageContent() {
               "status",
               "completed"
             )
-            .order("completed_at", {
-              ascending: false,
-            })
-            .limit(1)
             .maybeSingle();
 
-          if (latestAssessment) {
-            selectedCareerId =
-              latestAssessment.career_id;
+          if (error) {
+            throw error;
           }
+
+          if (!data) {
+            setErrorMessage(
+              "Data assessment tidak ditemukan."
+            );
+
+            setLoading(false);
+            return;
+          }
+
+          setAssessment(data);
+
+          selectedCareerId =
+            selectedCareerId ??
+            data.career_id;
         }
 
-        if (!selectedCareerId) {
+        if (
+          !selectedAssessmentId ||
+          !selectedCareerId
+        ) {
           setLoading(false);
           return;
         }
@@ -293,17 +318,12 @@ function RoadmapPageContent() {
             "id",
             selectedCareerId
           )
-          .single();
+          .maybeSingle();
 
         if (
           careerError ||
           !careerData
         ) {
-          console.error(
-            "Career error:",
-            careerError
-          );
-
           setErrorMessage(
             "Data career tidak ditemukan."
           );
@@ -315,94 +335,12 @@ function RoadmapPageContent() {
         setCareer(careerData);
 
         /* =========================
-           FIND ASSESSMENT
-        ========================= */
-
-        let selectedAssessmentId =
-          assessmentId;
-
-        if (!selectedAssessmentId) {
-          const {
-            data: latestAssessment,
-          } = await supabase
-            .from("assessments")
-            .select(
-              "id, career_id, attempt_number, assessment_type, status, completed_at"
-            )
-            .eq(
-              "user_id",
-              user.id
-            )
-            .eq(
-              "career_id",
-              selectedCareerId
-            )
-            .eq(
-              "status",
-              "completed"
-            )
-            .order("completed_at", {
-              ascending: false,
-            })
-            .limit(1)
-            .maybeSingle();
-
-          if (latestAssessment) {
-            selectedAssessmentId =
-              latestAssessment.id;
-
-            setAssessment(
-              latestAssessment
-            );
-          }
-        } else {
-          const {
-            data: assessmentData,
-            error: assessmentError,
-          } = await supabase
-            .from("assessments")
-            .select(
-              "id, career_id, attempt_number, assessment_type, status, completed_at"
-            )
-            .eq(
-              "id",
-              selectedAssessmentId
-            )
-            .eq(
-              "user_id",
-              user.id
-            )
-            .single();
-
-          if (
-            assessmentError ||
-            !assessmentData
-          ) {
-            setErrorMessage(
-              "Data assessment tidak ditemukan."
-            );
-
-            setLoading(false);
-            return;
-          }
-
-          setAssessment(
-            assessmentData
-          );
-        }
-
-        if (!selectedAssessmentId) {
-          setLoading(false);
-          return;
-        }
-
-        /* =========================
            SKILL RESULTS
         ========================= */
 
         const {
-          data: skillResultData,
-          error: skillResultError,
+          data: resultData,
+          error: resultError,
         } = await supabase
           .from("skill_results")
           .select(
@@ -413,49 +351,34 @@ function RoadmapPageContent() {
             user.id
           )
           .eq(
-            "career_id",
-            selectedCareerId
-          )
-          .eq(
             "assessment_id",
             selectedAssessmentId
-          )
-          .order("gap", {
-            ascending: false,
-          });
-
-        if (skillResultError) {
-          console.error(
-            "Skill result error:",
-            skillResultError
           );
 
-          setErrorMessage(
-            "Hasil Skill Gap gagal dimuat."
-          );
-
-          setLoading(false);
-          return;
+        if (resultError) {
+          throw resultError;
         }
 
-        const loadedSkillResults =
-          skillResultData ?? [];
+        const results =
+          resultData ?? [];
 
         setSkillResults(
-          loadedSkillResults
+          results
         );
 
         /* =========================
-           SKILL NAMES
+           SKILLS
         ========================= */
 
         const skillIds =
-          loadedSkillResults.map(
+          results.map(
             (item) =>
               item.skill_id
           );
 
-        if (skillIds.length > 0) {
+        if (
+          skillIds.length > 0
+        ) {
           const {
             data: skillData,
             error: skillError,
@@ -470,62 +393,58 @@ function RoadmapPageContent() {
             );
 
           if (skillError) {
-            console.error(
-              "Skill error:",
-              skillError
-            );
-          } else {
-            setSkills(
-              skillData ?? []
-            );
+            throw skillError;
           }
+
+          setSkills(
+            skillData ?? []
+          );
         }
 
         /* =========================
-           ROADMAP
+           CAREER SKILLS
+           IMPORTANCE
         ========================= */
 
         const {
-          data: roadmapData,
-          error: roadmapError,
+          data: careerSkillData,
+          error: careerSkillError,
         } = await supabase
-          .from("roadmaps")
+          .from("career_skills")
           .select(
-            "id, user_id, career_id, assessment_id, skill_id, title, description, priority, status, recommendation_type, created_at, updated_at"
-          )
-          .eq(
-            "user_id",
-            user.id
+            "skill_id, target_score, importance"
           )
           .eq(
             "career_id",
             selectedCareerId
-          )
-          .eq(
-            "assessment_id",
-            selectedAssessmentId
-          )
-          .order("priority", {
-            ascending: true,
-          });
-
-        if (roadmapError) {
-          console.error(
-            "Roadmap error:",
-            roadmapError
           );
 
-          setErrorMessage(
-            "Data roadmap gagal dimuat."
-          );
-
-          setLoading(false);
-          return;
+        if (careerSkillError) {
+          throw careerSkillError;
         }
 
-        setRoadmaps(
-          roadmapData ?? []
+        setCareerSkills(
+          (careerSkillData ??
+            []) as CareerSkill[]
         );
+
+        /* =========================
+           LOAD SAVED AI ROADMAP
+        ========================= */
+
+        const storageKey =
+          `skillmap-ai-roadmap-${selectedAssessmentId}`;
+
+        const savedRoadmap =
+          localStorage.getItem(
+            storageKey
+          );
+
+        if (savedRoadmap) {
+          setAiRoadmap(
+            savedRoadmap
+          );
+        }
 
         setLoading(false);
       } catch (error) {
@@ -549,64 +468,77 @@ function RoadmapPageContent() {
     router,
   ]);
 
-  /* =========================================================
-     SKILL NAME MAP
-  ========================================================= */
+  /* =======================================================
+     MAPS
+  ======================================================= */
 
-  const skillNameMap = useMemo(() => {
-    const map = new Map<
-      string,
-      string
-    >();
-
-    skills.forEach((skill) => {
-      map.set(
-        skill.id,
-        skill.name
-      );
-    });
-
-    return map;
-  }, [skills]);
-
-  /* =========================================================
-     DEVELOPMENT SKILLS
-  ========================================================= */
-
-  const developmentResults =
+  const skillNameMap =
     useMemo(() => {
+      const map =
+        new Map<
+          string,
+          string
+        >();
+
+      skills.forEach(
+        (skill) => {
+          map.set(
+            skill.id,
+            skill.name
+          );
+        }
+      );
+
+      return map;
+    }, [skills]);
+
+  const careerSkillMap =
+    useMemo(() => {
+      const map =
+        new Map<
+          string,
+          CareerSkill
+        >();
+
+      careerSkills.forEach(
+        (item) => {
+          map.set(
+            item.skill_id,
+            item
+          );
+        }
+      );
+
+      return map;
+    }, [careerSkills]);
+
+  /* =======================================================
+     PRIORITY ITEMS
+  ======================================================= */
+
+  const priorityItems =
+    useMemo<PriorityItem[]>(() => {
       return skillResults
         .filter(
-          (item) =>
-            item.score <
-            item.target_score
+          (result) =>
+            result.score <
+            result.target_score
         )
-        .sort(
-          (a, b) =>
-            b.gap - a.gap
-        );
-    }, [skillResults]);
+        .map((result) => {
+          const careerSkill =
+            careerSkillMap.get(
+              result.skill_id
+            );
 
-  /* =========================================================
-     ROADMAP CARDS
-  ========================================================= */
+          const importance =
+            careerSkill?.importance ??
+            3;
 
-  const roadmapCards =
-    useMemo<RoadmapCard[]>(() => {
-      return developmentResults.map(
-        (result) => {
-          const items =
-            roadmaps
-              .filter(
-                (roadmap) =>
-                  roadmap.skill_id ===
-                  result.skill_id
-              )
-              .sort(
-                (a, b) =>
-                  a.priority -
-                  b.priority
-              );
+          const priorityScore =
+            calculatePriorityScore(
+              result.gap,
+              importance
+            );
 
           return {
             skillId:
@@ -621,132 +553,64 @@ function RoadmapPageContent() {
             score:
               result.score,
 
-            targetScore:
+            target:
               result.target_score,
 
             gap:
               result.gap,
 
-            roadmapItems:
-              items,
+            importance,
+
+            priorityScore,
+
+            priorityLevel:
+              getPriorityLevel(
+                priorityScore
+              ),
           };
-        }
-      );
+        })
+        .sort(
+          (a, b) =>
+            b.priorityScore -
+            a.priorityScore
+        );
     }, [
-      developmentResults,
-      roadmaps,
+      skillResults,
+      careerSkillMap,
       skillNameMap,
     ]);
 
-  /* =========================================================
-     PRIORITY LABEL
-  ========================================================= */
+  const criticalItems =
+    priorityItems.filter(
+      (item) =>
+        item.priorityLevel ===
+        "critical"
+    );
 
-  function getPriorityLabel(
-    gap: number
-  ) {
-    if (
-      developmentResults.length ===
-      0
-    ) {
-      return "Prioritas";
-    }
+  const topPriorityItems =
+    priorityItems.slice(0, 5);
 
-    const largestGap =
-      developmentResults[0].gap;
-
-    if (
-      gap === largestGap
-    ) {
-      return "Prioritas Utama";
-    }
-
-    if (
-      gap >=
-      largestGap * 0.5
-    ) {
-      return "Prioritas Tinggi";
-    }
-
-    return "Prioritas Berikutnya";
-  }
-
-  /* =========================================================
-     ASSESSMENT LABEL
-  ========================================================= */
-
-  const assessmentLabel =
-    useMemo(() => {
-      if (!assessment) {
-        return "-";
-      }
-
-      if (
-        assessment.assessment_type ===
-        "baseline"
-      ) {
-        return "Baseline";
-      }
-
-      if (
-        assessment.assessment_type ===
-        "reassessment"
-      ) {
-        return "Reassessment";
-      }
-
-      return assessment.assessment_type;
-    }, [assessment]);
-
-  /* =========================================================
-     AI PERSONALIZED ROADMAP
-  ========================================================= */
-
-  useEffect(() => {
-    if (!assessment?.id) return;
-
-    const storageKey =
-      `skillmap-ai-roadmap-${assessment.id}`;
-
-    const savedRoadmap =
-      localStorage.getItem(
-        storageKey
-      );
-
-    if (savedRoadmap) {
-      setAiRoadmap(
-        savedRoadmap
-      );
-
-      setAiRoadmapAssessmentId(
-        assessment.id
-      );
-    } else {
-      setAiRoadmap("");
-      setAiRoadmapAssessmentId(
-        null
-      );
-    }
-  }, [assessment?.id]);
+  /* =======================================================
+     AI ROADMAP
+  ======================================================= */
 
   async function generateAiRoadmap() {
     if (
       !career ||
-      skillResults.length === 0 ||
-      !assessment?.id
+      !assessment ||
+      priorityItems.length === 0
     ) {
       return;
     }
 
-    if (
-      aiRoadmapAssessmentId ===
-        assessment.id &&
-      aiRoadmap
-    ) {
+    if (aiRoadmap) {
       return;
     }
 
-    setAiRoadmapLoading(true);
+    setAiRoadmapLoading(
+      true
+    );
+
     setAiRoadmapError("");
 
     try {
@@ -763,26 +627,29 @@ function RoadmapPageContent() {
               career:
                 career.name,
 
-              skills:
-                skillResults.map(
-                  (result) => ({
+              priorities:
+                priorityItems.map(
+                  (item) => ({
                     name:
-                      skillNameMap.get(
-                        result.skill_id
-                      ) ??
-                      result.skill_id,
+                      item.skillName,
 
                     score:
-                      result.score,
+                      item.score,
 
                     target:
-                      result.target_score,
+                      item.target,
 
                     gap:
-                      result.gap,
+                      item.gap,
 
-                    status:
-                      result.status,
+                    importance:
+                      item.importance,
+
+                    priorityScore:
+                      item.priorityScore,
+
+                    priorityLevel:
+                      item.priorityLevel,
                   })
                 ),
             }),
@@ -802,6 +669,12 @@ function RoadmapPageContent() {
       const roadmap =
         data.roadmap || "";
 
+      if (!roadmap) {
+        throw new Error(
+          "AI tidak memberikan roadmap."
+        );
+      }
+
       localStorage.setItem(
         `skillmap-ai-roadmap-${assessment.id}`,
         roadmap
@@ -810,20 +683,16 @@ function RoadmapPageContent() {
       setAiRoadmap(
         roadmap
       );
-
-      setAiRoadmapAssessmentId(
-        assessment.id
-      );
     } catch (error) {
       console.error(
-        "AI personalized roadmap error:",
+        "AI roadmap error:",
         error
       );
 
       setAiRoadmapError(
         error instanceof Error
           ? error.message
-          : "Personalized roadmap belum dapat dimuat."
+          : "Personalized roadmap belum dapat dibuat."
       );
     } finally {
       setAiRoadmapLoading(
@@ -832,46 +701,49 @@ function RoadmapPageContent() {
     }
   }
 
-  /* =========================================================
+  /* =======================================================
      LOADING
-  ========================================================= */
+  ======================================================= */
 
   if (loading) {
     return (
-      <main className="min-h-screen bg-[#f7faff] px-4 py-6 sm:px-6 sm:py-8">
+      <main className="min-h-screen bg-[#f7faff] px-6 py-8">
         <div className="mx-auto max-w-6xl animate-pulse">
-          <div className="h-5 w-36 rounded-full bg-slate-200" />
 
-          <div className="mt-5 h-10 w-80 max-w-full rounded-xl bg-slate-200" />
+          <div className="h-5 w-32 rounded-full bg-slate-200" />
+
+          <div className="mt-5 h-10 w-80 rounded-xl bg-slate-200" />
 
           <div className="mt-3 h-4 w-[520px] max-w-full rounded-full bg-slate-100" />
 
-          <div className="mt-8 h-32 rounded-[26px] bg-white" />
+          <div className="mt-8 h-40 rounded-[26px] bg-white" />
 
-          <div className="mt-5 grid gap-4 md:grid-cols-2">
-            <div className="h-56 rounded-[24px] bg-white" />
-            <div className="h-56 rounded-[24px] bg-white" />
-          </div>
+          <div className="mt-5 h-72 rounded-[26px] bg-white" />
+
         </div>
       </main>
     );
   }
 
-  /* =========================================================
+  /* =======================================================
      ERROR
-  ========================================================= */
+  ======================================================= */
 
   if (errorMessage) {
     return (
-      <main className="min-h-screen bg-[#f7faff] px-4 py-6 sm:px-6 sm:py-8">
+      <main className="min-h-screen bg-[#f7faff] px-6 py-8">
         <div className="mx-auto max-w-6xl">
-          <div className="rounded-[26px] border border-red-100 bg-white p-6 sm:p-8">
+
+          <div className="rounded-[26px] border border-red-100 bg-white p-8">
+
             <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-red-50 text-red-500">
               <Target size={22} />
             </div>
 
             <h1 className="mt-5 text-2xl font-bold text-slate-950">
-              Roadmap
+              {t(
+                "roadmap.errorTitle"
+              )}
             </h1>
 
             <p className="mt-3 text-sm text-red-600">
@@ -885,41 +757,49 @@ function RoadmapPageContent() {
                   "/skillgap"
                 )
               }
-              className="mt-6 inline-flex items-center gap-2 rounded-xl bg-blue-600 px-5 py-3 text-sm font-semibold text-white transition hover:bg-blue-700"
+              className="mt-6 inline-flex items-center gap-2 rounded-xl bg-blue-600 px-5 py-3 text-sm font-semibold text-white"
             >
-              Kembali ke Skill Gap
+              {t(
+                "roadmap.backToSkillGap"
+              )}
               <ArrowRight size={16} />
             </button>
+
           </div>
+
         </div>
       </main>
     );
   }
 
-  /* =========================================================
-     NO ASSESSMENT
-  ========================================================= */
+  /* =======================================================
+     EMPTY
+  ======================================================= */
 
   if (
     !assessment ||
     !career
   ) {
     return (
-      <main className="min-h-screen bg-[#f7faff] px-4 py-6 sm:px-6 sm:py-8">
+      <main className="min-h-screen bg-[#f7faff] px-6 py-8">
         <div className="mx-auto max-w-6xl">
-          <div className="rounded-[26px] border border-slate-200 bg-white p-6 sm:p-8">
-            <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-yellow-100 text-yellow-700">
+
+          <div className="rounded-[26px] border border-slate-200 bg-white p-8">
+
+            <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-blue-50 text-blue-600">
               <Target size={22} />
             </div>
 
             <h1 className="mt-5 text-2xl font-bold text-slate-950">
-              Roadmap Belum Tersedia
+              {t(
+                "roadmap.noAssessment"
+              )}
             </h1>
 
             <p className="mt-3 max-w-xl text-sm leading-6 text-slate-500">
-              Selesaikan Skill Check terlebih dahulu
-              untuk mendapatkan roadmap pengembangan
-              yang disesuaikan dengan hasil kompetensimu.
+              {t(
+                "roadmap.noAssessmentDescription"
+              )}
             </p>
 
             <button
@@ -929,1041 +809,701 @@ function RoadmapPageContent() {
                   "/skillcheck"
                 )
               }
-              className="mt-6 inline-flex items-center gap-2 rounded-xl bg-blue-600 px-5 py-3 text-sm font-semibold text-white transition hover:bg-blue-700"
+              className="mt-6 inline-flex items-center gap-2 rounded-xl bg-blue-600 px-5 py-3 text-sm font-semibold text-white"
             >
-              Mulai Skill Check
+              {t(
+                "skillCheck.startSkillCheck"
+              )}
               <ArrowRight size={16} />
             </button>
+
           </div>
+
         </div>
       </main>
     );
   }
 
-  /* =========================================================
-     MAIN PAGE
-  ========================================================= */
+  /* =======================================================
+     MAIN
+  ======================================================= */
 
   return (
-    <>
-      <main className="min-h-screen bg-[#f7faff] px-4 py-6 sm:px-6 sm:py-8">
-        <div className="mx-auto max-w-6xl">
+    <main className="min-h-screen bg-[#f7faff] px-6 py-8">
 
-          {/* =================================================
-              HEADER
-          ================================================= */}
+      <div className="mx-auto max-w-6xl">
 
-          <section className="relative overflow-hidden rounded-[30px] border border-blue-100 bg-white p-6 shadow-[0_15px_45px_rgba(37,99,235,0.05)] sm:p-8">
-            <div className="relative z-10">
-              <div className="flex flex-wrap items-center gap-2">
-                <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-yellow-100 text-yellow-700">
-                  <MapIcon />
-                </span>
+        {/* =================================================
+            HEADER
+        ================================================= */}
 
-                <span className="text-xs font-bold uppercase tracking-wider text-blue-600">
-                  Roadmap Pengembangan
-                </span>
+        <section className="relative overflow-hidden rounded-[30px] border border-blue-100 bg-white p-7 shadow-[0_15px_45px_rgba(37,99,235,0.05)] sm:p-8">
 
-                <span
-                  className={`rounded-full px-3 py-1 text-[10px] font-bold ${
-                    isPremium
-                      ? "bg-yellow-100 text-yellow-700"
-                      : "bg-yellow-50 text-yellow-700"
-                  }`}
-                >
-                  {isPremium
-                    ? "Premium"
-                    : "Freemium"}
-                </span>
-              </div>
+          <div className="relative z-10">
 
-              <h1 className="mt-5 text-3xl font-bold tracking-tight text-slate-950 sm:text-4xl">
-                Bangun Kompetensi Secara Terarah
-              </h1>
+            <div className="flex flex-wrap items-center gap-2">
 
-              <p className="mt-3 max-w-2xl text-sm leading-7 text-slate-500">
-                Roadmap disusun berdasarkan kompetensi
-                yang masih memiliki gap terhadap benchmark{" "}
-                <span className="font-semibold text-slate-700">
-                  {career.name}
-                </span>
-                .
-              </p>
+              <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-50 text-blue-600">
+                <TrendingUp size={19} />
+              </span>
 
-              <div className="mt-5 flex flex-wrap gap-2">
-                <span className="rounded-full border border-blue-100 bg-blue-50 px-3.5 py-2 text-xs font-semibold text-blue-700">
-                  {career.name}
-                </span>
+              <span className="text-xs font-bold uppercase tracking-wider text-blue-600">
+                {t(
+                  "roadmap.label"
+                )}
+              </span>
 
-                <span className="rounded-full border border-slate-200 bg-white px-3.5 py-2 text-xs text-slate-500">
-                  {assessmentLabel}
-                </span>
+              <span className="rounded-full bg-yellow-50 px-3 py-1 text-[10px] font-bold text-yellow-700">
+                {t(
+                  "roadmap.premium"
+                )}
+              </span>
 
-                <span className="rounded-full border border-slate-200 bg-white px-3.5 py-2 text-xs text-slate-500">
-                  {developmentResults.length}{" "}
-                  kompetensi perlu dikembangkan
-                </span>
-              </div>
             </div>
 
-            <div className="pointer-events-none absolute -right-20 -top-24 h-64 w-64 rounded-full bg-blue-100/60 blur-3xl" />
+            <h1 className="mt-5 text-3xl font-bold tracking-tight text-slate-950 sm:text-4xl">
+              {t(
+                "roadmap.title"
+              )}
+            </h1>
 
-            <div className="pointer-events-none absolute -bottom-20 left-1/3 h-48 w-48 rounded-full bg-yellow-100/50 blur-3xl" />
-          </section>
+            <p className="mt-3 max-w-2xl text-sm leading-7 text-slate-500">
+              {t(
+                "roadmap.subtitle"
+              )}{" "}
+              <span className="font-semibold text-slate-700">
+                {career.name}
+              </span>
+              .
+            </p>
 
-          {/* =================================================
-              FREEMIUM PREVIEW
-          ================================================= */}
+            <div className="mt-5 flex flex-wrap gap-2">
 
-          {!isPremium && (
-            <section className="mt-5 overflow-hidden rounded-[26px] border border-yellow-200 bg-white shadow-[0_10px_35px_rgba(245,158,11,0.06)]">
+              <span className="inline-flex items-center gap-2 rounded-full border border-blue-100 bg-blue-50 px-3.5 py-2 text-xs font-semibold text-blue-700">
+                <Target size={14} />
+                {career.name}
+              </span>
 
-              <div className="border-b border-yellow-100 bg-gradient-to-r from-yellow-50/80 via-white to-white p-6 sm:p-7">
-                <div className="flex flex-col justify-between gap-5 md:flex-row md:items-center">
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-yellow-100 text-yellow-700">
-                        <Sparkles size={17} />
-                      </span>
+              <span className="rounded-full border border-slate-200 bg-white px-3.5 py-2 text-xs text-slate-500">
+                {assessment.assessment_type ===
+                "reassessment"
+                  ? t(
+                      "roadmap.reassessment"
+                    )
+                  : t(
+                      "roadmap.baseline"
+                    )}{" "}
+                #{assessment.attempt_number}
+              </span>
 
-                      <p className="text-xs font-bold uppercase tracking-wider text-yellow-700">
-                        Preview Roadmap
-                      </p>
-                    </div>
+            </div>
 
-                    <h2 className="mt-3 text-xl font-bold text-slate-950">
-                      Ada{" "}
-                      <span className="text-yellow-700">
-                        {roadmapCards.length}
-                      </span>{" "}
-                      fokus pengembangan untukmu
-                    </h2>
+          </div>
 
-                    <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-500">
-                      Roadmap membantu menentukan langkah
-                      pengembangan berdasarkan kompetensi
-                      yang paling perlu diperkuat.
-                    </p>
-                  </div>
+          <div className="pointer-events-none absolute -right-20 -top-24 h-64 w-64 rounded-full bg-blue-100/60 blur-3xl" />
 
-                  <div className="shrink-0">
-                    <div className="rounded-2xl border border-yellow-100 bg-white px-5 py-4 text-center shadow-sm">
-                      <p className="text-2xl font-bold text-yellow-700">
-                        {roadmapCards.length}
-                      </p>
+          <div className="pointer-events-none absolute -bottom-20 left-1/3 h-48 w-48 rounded-full bg-yellow-100/50 blur-3xl" />
 
-                      <p className="mt-1 text-[10px] font-semibold uppercase tracking-wider text-slate-400">
-                        Fokus
-                      </p>
-                    </div>
-                  </div>
+        </section>
+
+        {/* =================================================
+            FREE
+        ================================================= */}
+
+        {!isPremium && (
+          <section className="mt-5 overflow-hidden rounded-[26px] border border-yellow-200 bg-white">
+
+            <div className="border-b border-yellow-100 bg-yellow-50/60 p-6 sm:p-7">
+
+              <div className="flex items-center gap-3">
+
+                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-yellow-100 text-yellow-700">
+                  <Lock size={18} />
                 </div>
+
+                <div>
+
+                  <p className="text-xs font-bold uppercase tracking-wider text-yellow-700">
+                    {t(
+                      "roadmap.locked"
+                    )}
+                  </p>
+
+                  <h2 className="mt-1 text-xl font-bold text-slate-950">
+                    {t(
+                      "roadmap.lockedTitle"
+                    )}
+                  </h2>
+
+                </div>
+
               </div>
 
-              <div className="p-6 sm:p-7">
-                <div className="grid gap-4 md:grid-cols-2">
-                  {roadmapCards
-                    .slice(0, 4)
-                    .map(
-                      (card, index) => (
-                        <div
-                          key={
-                            card.skillId
-                          }
-                          className="relative overflow-hidden rounded-2xl border border-slate-100 bg-slate-50/70 p-5"
-                        >
-                          <div className="flex items-start justify-between gap-4">
-                            <div className="min-w-0">
-                              <span className="inline-flex rounded-full bg-yellow-50 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide text-yellow-700">
-                                Fokus {index + 1}
-                              </span>
+              <p className="mt-4 max-w-2xl text-sm leading-6 text-slate-500">
+                {t(
+                  "roadmap.lockedDescription"
+                )}
+              </p>
 
-                              <h3 className="mt-3 text-base font-bold text-slate-900">
-                                {card.skillName}
-                              </h3>
+            </div>
 
-                              <p className="mt-1 text-xs text-slate-500">
-                                Gap{" "}
-                                <span className="font-semibold text-yellow-700">
-                                  {card.gap}
-                                </span>{" "}
-                                poin
-                              </p>
-                            </div>
+            <div className="p-6 sm:p-7">
 
-                            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-yellow-100 text-yellow-700">
-                              <Lock size={17} />
-                            </div>
+              <div className="space-y-3">
+
+                {topPriorityItems
+                  .slice(0, 3)
+                  .map(
+                    (
+                      item,
+                      index
+                    ) => (
+                      <div
+                        key={
+                          item.skillId
+                        }
+                        className="rounded-2xl border border-slate-100 bg-slate-50 p-5"
+                      >
+
+                        <div className="flex items-center gap-4">
+
+                          <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-yellow-100 text-sm font-bold text-yellow-700">
+                            {index + 1}
+                          </span>
+
+                          <div className="min-w-0">
+
+                            <p className="text-sm font-bold text-slate-900">
+                              {item.skillName}
+                            </p>
+
+                            <p className="mt-1 text-xs text-slate-400">
+                              {t(
+                                "roadmap.priorityGap"
+                              )}{" "}
+                              {item.gap}
+                            </p>
+
                           </div>
 
-                          <div className="mt-5 rounded-xl border border-white bg-white p-4">
-                            <div className="flex items-center justify-between gap-3">
-                              <span className="text-xs text-slate-400">
-                                Langkah pengembangan
-                              </span>
-
-                              <span className="text-xs font-semibold text-slate-400">
-                                {card.roadmapItems.length || "—"}{" "}
-                                langkah
-                              </span>
-                            </div>
-
-                            <div className="mt-3 space-y-2">
-                              <div className="h-3 w-4/5 rounded-full bg-slate-100" />
-                              <div className="h-3 w-3/5 rounded-full bg-slate-100" />
-                            </div>
-                          </div>
                         </div>
-                      )
+
+                      </div>
+                    )
+                  )}
+
+              </div>
+
+              <div className="mt-5 flex flex-col items-center justify-between gap-4 rounded-2xl border border-yellow-100 bg-yellow-50/60 p-5 sm:flex-row">
+
+                <div>
+
+                  <p className="text-sm font-bold text-slate-900">
+                    {t(
+                      "roadmap.upgradeTitle"
                     )}
+                  </p>
+
+                  <p className="mt-1 text-xs leading-5 text-slate-500">
+                    {t(
+                      "roadmap.upgradeDescription"
+                    )}
+                  </p>
+
                 </div>
 
-                {roadmapCards.length === 0 && (
-                  <div className="rounded-2xl border border-dashed border-yellow-200 bg-yellow-50/50 p-6 text-center">
-                    <p className="text-sm font-semibold text-slate-700">
-                      Belum ada fokus roadmap.
-                    </p>
+                <button
+                  type="button"
+                  onClick={() =>
+                    router.push(
+                      "/upgrade"
+                    )
+                  }
+                  className="inline-flex shrink-0 items-center gap-2 rounded-xl bg-yellow-500 px-5 py-3 text-sm font-bold text-white shadow-md shadow-yellow-500/20 transition hover:bg-yellow-600"
+                >
+                  {t(
+                    "roadmap.upgrade"
+                  )}
+                  <ArrowRight size={16} />
+                </button>
 
-                    <p className="mt-1 text-xs text-slate-500">
-                      Lakukan Skill Check untuk mendapatkan
-                      rekomendasi pengembangan.
-                    </p>
-                  </div>
+              </div>
+
+            </div>
+
+          </section>
+        )}
+
+        {/* =================================================
+            PREMIUM
+        ================================================= */}
+
+        {isPremium && (
+          <>
+
+            {/* =============================================
+                OVERVIEW
+            ============================================= */}
+
+            <section className="mt-5 grid gap-4 md:grid-cols-3">
+
+              <RoadmapStat
+                label={t(
+                  "roadmap.prioritySkills"
+                )}
+                value={
+                  priorityItems.length
+                }
+                icon={
+                  <TrendingUp size={19} />
+                }
+              />
+
+              <RoadmapStat
+                label={t(
+                  "roadmap.criticalSkills"
+                )}
+                value={
+                  criticalItems.length
+                }
+                icon={
+                  <Target size={19} />
+                }
+              />
+
+              <RoadmapStat
+                label={t(
+                  "roadmap.topFocus"
+                )}
+                value={
+                  topPriorityItems[0]
+                    ?.skillName ??
+                  "-"
+                }
+                icon={
+                  <Sparkles size={19} />
+                }
+                textValue
+              />
+
+            </section>
+
+            {/* =============================================
+                PRIORITY FOUNDATION
+            ============================================= */}
+
+            <section className="mt-5 rounded-[26px] border border-slate-200 bg-white p-6 shadow-[0_10px_30px_rgba(15,23,42,0.035)] sm:p-7">
+
+              <p className="text-xs font-bold uppercase tracking-wider text-blue-600">
+                {t(
+                  "roadmap.priorityFoundation"
+                )}
+              </p>
+
+              <h2 className="mt-2 text-2xl font-bold text-slate-950">
+                {t(
+                  "roadmap.priorityFoundationTitle"
+                )}
+              </h2>
+
+              <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-500">
+                {t(
+                  "roadmap.priorityFoundationDescription"
+                )}
+              </p>
+
+              <div className="mt-6 space-y-3">
+
+                {topPriorityItems.map(
+                  (
+                    item,
+                    index
+                  ) => (
+                    <div
+                      key={
+                        item.skillId
+                      }
+                      className={`rounded-2xl border p-5 ${
+                        index === 0
+                          ? "border-blue-200 bg-blue-50/40"
+                          : "border-slate-100 bg-slate-50/50"
+                      }`}
+                    >
+
+                      <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
+
+                        <div className="flex items-center gap-4">
+
+                          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-white text-sm font-bold text-blue-600 shadow-sm">
+                            {index + 1}
+                          </div>
+
+                          <div>
+
+                            <p className="text-sm font-bold text-slate-900">
+                              {item.skillName}
+                            </p>
+
+                            <p className="mt-1 text-xs text-slate-400">
+                              {t(
+                                "roadmap.gap"
+                              )}{" "}
+                              {item.gap}
+                              {" · "}
+                              {t(
+                                "roadmap.priorityScore"
+                              )}{" "}
+                              {Math.round(
+                                item.priorityScore
+                              )}
+                            </p>
+
+                          </div>
+
+                        </div>
+
+                        <div className="ml-auto flex items-center gap-2">
+
+                          <span className="rounded-full bg-white px-3 py-1.5 text-[10px] font-bold text-blue-600 shadow-sm">
+                            {item.priorityLevel ===
+                            "critical"
+                              ? t(
+                                  "roadmap.critical"
+                                )
+                              : item.priorityLevel ===
+                                  "high"
+                                ? t(
+                                    "roadmap.high"
+                                  )
+                                : t(
+                                    "roadmap.medium"
+                                  )}
+                          </span>
+
+                        </div>
+
+                      </div>
+
+                    </div>
+                  )
                 )}
 
-                {roadmapCards.length > 0 && (
-                  <div className="mt-5 flex flex-col items-center justify-between gap-4 rounded-2xl border border-yellow-100 bg-yellow-50/60 p-5 sm:flex-row">
-                    <div>
-                      <p className="text-sm font-bold text-slate-900">
-                        Buka roadmap pengembanganmu
-                      </p>
+              </div>
 
-                      <p className="mt-1 max-w-xl text-xs leading-5 text-slate-500">
-                        Lihat langkah pengembangan secara
-                        lengkap dan gunakan personalized
-                        roadmap untuk menentukan prioritasmu.
-                      </p>
-                    </div>
+            </section>
+
+            {/* =============================================
+                AI ROADMAP
+            ============================================= */}
+
+            <section className="mt-5 rounded-[26px] border border-blue-100 bg-white p-6 shadow-[0_10px_30px_rgba(15,23,42,0.035)] sm:p-7">
+
+              <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+
+                <div>
+
+                  <div className="flex items-center gap-2">
+
+                    <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-yellow-100 text-yellow-700">
+                      <Sparkles size={18} />
+                    </span>
+
+                    <p className="text-xs font-bold uppercase tracking-wider text-blue-600">
+                      {t(
+                        "roadmap.aiLabel"
+                      )}
+                    </p>
+
+                  </div>
+
+                  <h2 className="mt-4 text-2xl font-bold text-slate-950">
+                    {t(
+                      "roadmap.aiTitle"
+                    )}
+                  </h2>
+
+                  <p className="mt-2 max-w-2xl text-sm leading-7 text-slate-500">
+                    {t(
+                      "roadmap.aiDescription"
+                    )}
+                  </p>
+
+                </div>
+
+                {aiRoadmap && (
+                  <span className="inline-flex w-fit items-center gap-1.5 rounded-full bg-emerald-50 px-3 py-1.5 text-xs font-semibold text-emerald-600">
+                    <CheckCircle2 size={14} />
+                    {t(
+                      "roadmap.generated"
+                    )}
+                  </span>
+                )}
+
+              </div>
+
+              {!aiRoadmap &&
+                !aiRoadmapLoading && (
+                  <div className="mt-6 rounded-2xl border border-dashed border-blue-200 bg-blue-50/40 p-6">
+
+                    <p className="text-sm font-bold text-slate-900">
+                      {t(
+                        "roadmap.readyTitle"
+                      )}
+                    </p>
+
+                    <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-500">
+                      {t(
+                        "roadmap.readyDescription"
+                      )}
+                    </p>
 
                     <button
                       type="button"
-                      onClick={() =>
-                        router.push(
-                          "/upgrade"
-                        )
+                      onClick={
+                        generateAiRoadmap
                       }
-                      className="inline-flex shrink-0 items-center gap-2 rounded-xl bg-yellow-500 px-5 py-3 text-sm font-bold text-white shadow-md shadow-yellow-500/20 transition hover:-translate-y-0.5 hover:bg-yellow-600"
+                      className="mt-5 inline-flex items-center gap-2 rounded-xl bg-blue-600 px-5 py-3 text-sm font-semibold text-white shadow-md shadow-blue-600/20 transition hover:-translate-y-0.5 hover:bg-blue-700"
                     >
-                      Tingkatkan Paket
-                      <ArrowRight size={16} />
+                      {t(
+                        "roadmap.generate"
+                      )}
+                      <Sparkles size={16} />
                     </button>
+
                   </div>
                 )}
-              </div>
-            </section>
-          )}
 
-          {/* =================================================
-              AI PERSONALIZED ROADMAP PREVIEW
-          ================================================= */}
+              {aiRoadmapLoading && (
+                <div className="mt-6 rounded-2xl border border-blue-100 bg-blue-50/50 p-6">
 
-          {!isPremium && (
-            <section className="mt-5 overflow-hidden rounded-[24px] border border-yellow-100 bg-white shadow-[0_8px_28px_rgba(245,158,11,0.05)]">
+                  <div className="flex items-center gap-3">
 
-              <div className="border-b border-yellow-100 bg-gradient-to-r from-yellow-50/70 via-white to-white px-6 py-5 sm:px-7">
-                <div className="flex items-center gap-2">
-                  <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-yellow-100 text-yellow-700">
-                    <Sparkles size={16} />
-                  </span>
+                    <div className="h-9 w-9 animate-pulse rounded-xl bg-blue-200" />
 
-                  <p className="text-xs font-bold uppercase tracking-wider text-yellow-700">
-                    AI Personalized Roadmap
-                  </p>
+                    <div>
+
+                      <p className="text-sm font-bold text-slate-900">
+                        {t(
+                          "roadmap.generating"
+                        )}
+                      </p>
+
+                      <p className="mt-1 text-xs text-slate-500">
+                        {t(
+                          "roadmap.generatingDescription"
+                        )}
+                      </p>
+
+                    </div>
+
+                  </div>
+
                 </div>
+              )}
 
-                <h2 className="mt-3 text-lg font-bold text-slate-950">
-                  Rekomendasi Pengembangan Personal
-                </h2>
+              {aiRoadmapError && (
+                <div className="mt-6 rounded-2xl border border-red-100 bg-red-50 p-5">
 
-                <p className="mt-1.5 max-w-2xl text-sm leading-6 text-slate-500">
-                  AI akan menyusun langkah pengembangan yang disesuaikan
-                  dengan hasil Skill Check dan skill gap kamu.
-                </p>
-              </div>
+                  <p className="text-sm font-semibold text-red-600">
+                    {aiRoadmapError}
+                  </p>
 
-              <div className="p-5 sm:p-6">
-                <div className="relative overflow-hidden rounded-2xl border border-yellow-100 bg-yellow-50/30 p-4 sm:p-5">
+                  <button
+                    type="button"
+                    onClick={
+                      generateAiRoadmap
+                    }
+                    className="mt-3 text-xs font-semibold text-red-700 underline"
+                  >
+                    {t(
+                      "roadmap.tryAgain"
+                    )}
+                  </button>
 
-                  <div className="pointer-events-none select-none blur-[2px]">
-                    <div className="flex items-center gap-3">
+                </div>
+              )}
+
+              {aiRoadmap &&
+                !aiRoadmapLoading && (
+                  <div className="mt-6 rounded-2xl border border-slate-100 bg-slate-50 p-6">
+
+                    <div className="mb-5 flex items-center gap-3">
+
                       <span className="rounded-md bg-yellow-500 px-2 py-1 text-[10px] font-bold text-white">
                         AI
                       </span>
 
                       <div>
+
                         <p className="text-sm font-bold text-slate-900">
-                          Roadmap Personal
+                          {t(
+                            "roadmap.personalRoadmap"
+                          )}
                         </p>
 
                         <p className="text-xs text-slate-400">
-                          Berdasarkan Skill Check terakhir
+                          {t(
+                            "roadmap.basedOnPriority"
+                          )}
                         </p>
+
                       </div>
+
                     </div>
 
-                    <div className="mt-4 space-y-2.5">
-                      <div className="rounded-xl border bg-white p-3.5">
-                        <p className="text-sm font-semibold text-slate-900">
-                          01. Perkuat kompetensi prioritas
-                        </p>
-
-                        <p className="mt-1 text-xs leading-5 text-slate-500">
-                          Pelajari materi dan lakukan latihan terarah berdasarkan gap kompetensi.
-                        </p>
-                      </div>
-
-                      <div className="rounded-xl border bg-white p-3.5">
-                        <p className="text-sm font-semibold text-slate-900">
-                          02. Terapkan melalui proyek
-                        </p>
-
-                        <p className="mt-1 text-xs leading-5 text-slate-500">
-                          Bangun pengalaman melalui proyek yang sesuai dengan target karier.
-                        </p>
-                      </div>
+                    <div className="whitespace-pre-line text-sm leading-7 text-slate-600">
+                      {aiRoadmap
+                        .replace(
+                          /\*\*/g,
+                          ""
+                        )
+                        .replace(
+                          /^#+\s*/gm,
+                          ""
+                        )
+                        .replace(
+                          /^\-\s+/gm,
+                          "• "
+                        )}
                     </div>
+
                   </div>
+                )}
 
-                  <div className="absolute inset-0 flex items-center justify-center bg-white/45 px-4">
-                    <div className="w-full max-w-sm rounded-2xl border border-yellow-100 bg-white/95 px-5 py-4 text-center shadow-md">
-                      <div className="mx-auto flex h-10 w-10 items-center justify-center rounded-full bg-yellow-100 text-yellow-700">
-                        <Lock size={17} />
-                      </div>
-
-                      <h3 className="mt-2.5 text-sm font-bold text-slate-900">
-                        Personalized Roadmap dengan AI
-                      </h3>
-
-                      <p className="mt-1 text-xs leading-5 text-slate-500">
-                        Rekomendasi pengembangan yang disusun berdasarkan kompetensi dan skill gap kamu.
-                      </p>
-                    </div>
-                  </div>
-
-                </div>
-              </div>
             </section>
-          )}
 
-          {/* =================================================
-              PREMIUM CONTENT
-          ================================================= */}
+            {/* =============================================
+                REASSESSMENT
+            ============================================= */}
 
-          {isPremium && (
-            <>
-              {roadmapCards.length === 0 ? (
-                <section className="mt-6 rounded-[26px] border border-emerald-100 bg-white p-6 sm:p-7">
-                  <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-emerald-50 text-emerald-600">
-                    <CheckCircle2 size={22} />
-                  </div>
+            <section className="mt-5 rounded-[26px] border border-blue-100 bg-gradient-to-br from-white to-blue-50/50 p-6 sm:p-7">
 
-                  <h2 className="mt-5 text-xl font-bold text-slate-950">
-                    Semua kompetensi sudah memenuhi benchmark 🎉
+              <div className="flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between">
+
+                <div>
+
+                  <p className="text-xs font-bold uppercase tracking-wider text-blue-600">
+                    {t(
+                      "roadmap.nextStep"
+                    )}
+                  </p>
+
+                  <h2 className="mt-2 text-xl font-bold text-slate-950">
+                    {t(
+                      "roadmap.nextStepTitle"
+                    )}
                   </h2>
 
                   <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-500">
-                    Saat ini belum ada kompetensi yang
-                    membutuhkan fokus pengembangan.
-                    Lakukan Skill Check kembali setelah
-                    mengembangkan kompetensimu untuk
-                    memperbarui roadmap.
-                  </p>
-                </section>
-              ) : (
-                <>
-                  {/* PRIORITY INFO */}
-
-                  <section className="mt-6 rounded-[26px] border border-slate-200 bg-white p-6 shadow-[0_10px_30px_rgba(15,23,42,0.035)]">
-                    <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-                      <div>
-                        <p className="text-xs font-bold uppercase tracking-wider text-blue-600">
-                          Prioritas Pengembangan
-                        </p>
-
-                        <h2 className="mt-2 text-xl font-bold text-slate-950">
-                          Fokus dimulai dari gap terbesar
-                        </h2>
-
-                        <p className="mt-1 text-sm text-slate-500">
-                          Kompetensi dengan gap yang sama
-                          memiliki prioritas pengembangan
-                          yang setara.
-                        </p>
-                      </div>
-
-                      <div className="shrink-0 rounded-2xl bg-blue-50 px-5 py-4 text-center">
-                        <p className="text-xs text-blue-500">
-                          Total fokus
-                        </p>
-
-                        <p className="mt-1 text-2xl font-bold text-blue-700">
-                          {roadmapCards.length}
-                        </p>
-                      </div>
-                    </div>
-                  </section>
-
-                  {/* ROADMAP GRID */}
-
-                  <section className="mt-5">
-                    <div className="grid gap-4 md:grid-cols-2">
-                      {roadmapCards.map(
-                        (card) => {
-                          const priorityLabel =
-                            getPriorityLabel(
-                              card.gap
-                            );
-
-                          return (
-                            <button
-                              key={
-                                card.skillId
-                              }
-                              type="button"
-                              onClick={() =>
-                                setSelectedCard(
-                                  card
-                                )
-                              }
-                              className="group rounded-[24px] border border-slate-200 bg-white p-5 text-left shadow-[0_8px_25px_rgba(15,23,42,0.03)] transition hover:-translate-y-0.5 hover:border-blue-200 hover:shadow-md"
-                            >
-                              <div className="flex items-center justify-between gap-3">
-                                <span
-                                  className={`rounded-full px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide ${
-                                    priorityLabel ===
-                                    "Prioritas Utama"
-                                      ? "bg-blue-600 text-white"
-                                      : priorityLabel ===
-                                        "Prioritas Tinggi"
-                                      ? "bg-blue-50 text-blue-700"
-                                      : "bg-slate-100 text-slate-500"
-                                  }`}
-                                >
-                                  {
-                                    priorityLabel
-                                  }
-                                </span>
-
-                                <span className="text-xs text-slate-400">
-                                  {
-                                    card
-                                      .roadmapItems
-                                      .length
-                                  }{" "}
-                                  langkah
-                                </span>
-                              </div>
-
-                              <div className="mt-5 flex items-start justify-between gap-4">
-                                <div>
-                                  <h3 className="text-lg font-bold text-slate-950 group-hover:text-blue-600">
-                                    {
-                                      card.skillName
-                                    }
-                                  </h3>
-
-                                  <p className="mt-1 text-sm text-slate-500">
-                                    Fokus pengembangan kompetensi
-                                  </p>
-                                </div>
-
-                                <div className="shrink-0 text-right">
-                                  <p className="text-2xl font-bold text-slate-950">
-                                    {
-                                      card.gap
-                                    }
-                                  </p>
-
-                                  <p className="text-[11px] text-slate-400">
-                                    gap
-                                  </p>
-                                </div>
-                              </div>
-
-                              <div className="mt-5">
-                                <div className="flex items-center justify-between text-xs">
-                                  <span className="text-slate-500">
-                                    Skill Kamu
-                                  </span>
-
-                                  <span className="font-semibold text-slate-700">
-                                    {
-                                      card.score
-                                    }{" "}
-                                    /{" "}
-                                    {
-                                      card.targetScore
-                                    }
-                                  </span>
-                                </div>
-
-                                <div className="mt-2 h-2 overflow-hidden rounded-full bg-slate-100">
-                                  <div
-                                    className="h-full rounded-full bg-blue-600 transition-all"
-                                    style={{
-                                      width: `${Math.min(
-                                        Math.max(
-                                          card.score,
-                                          0
-                                        ),
-                                        100
-                                      )}%`,
-                                    }}
-                                  />
-                                </div>
-                              </div>
-
-                              <div className="mt-5 border-t border-slate-100 pt-4">
-                                <p className="text-xs font-medium text-blue-600">
-                                  Klik untuk melihat detail roadmap →
-                                </p>
-                              </div>
-                            </button>
-                          );
-                        }
-                      )}
-                    </div>
-                  </section>
-
-                  {/* =================================================
-                      AI PERSONALIZED ROADMAP
-                  ================================================= */}
-
-                  <section className="mt-6 rounded-[26px] border border-blue-100 bg-white p-6 shadow-[0_10px_30px_rgba(15,23,42,0.035)]">
-                    <div>
-                      <div className="flex items-center gap-2">
-                        <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-yellow-100 text-yellow-700">
-                          <Sparkles size={17} />
-                        </span>
-
-                        <p className="text-xs font-bold uppercase tracking-wider text-blue-600">
-                          Personalized Development
-                        </p>
-                      </div>
-
-                      <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-                        <h2 className="text-lg font-bold text-slate-950">
-                          Rekomendasi Pengembangan Personal
-                        </h2>
-
-                        {aiRoadmap && (
-                          <span className="inline-flex w-fit items-center rounded-full bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-600">
-                            ✓ Roadmap tersimpan
-                          </span>
-                        )}
-                      </div>
-
-                      <p className="mt-1 max-w-2xl text-sm leading-6 text-slate-500">
-                        Disusun berdasarkan hasil Skill Check
-                        terakhir, benchmark, dan skill gap kamu.
-                      </p>
-                    </div>
-
-                    {!aiRoadmap &&
-                      !aiRoadmapLoading && (
-                        <div className="mt-5 rounded-2xl border border-dashed border-blue-100 bg-blue-50/50 p-5">
-                          <p className="text-sm font-bold text-slate-900">
-                            Siap membuat roadmap yang lebih personal?
-                          </p>
-
-                          <p className="mt-1 text-sm leading-6 text-slate-500">
-                            AI akan menentukan prioritas pengembangan
-                            berdasarkan kompetensi yang paling perlu diperkuat.
-                          </p>
-
-                          <button
-                            type="button"
-                            onClick={
-                              generateAiRoadmap
-                            }
-                            disabled={
-                              aiRoadmapLoading
-                            }
-                            className="mt-4 inline-flex items-center gap-2 rounded-xl bg-blue-600 px-5 py-3 text-sm font-semibold text-white shadow-md shadow-blue-600/20 transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
-                          >
-                            Buat Personalized Roadmap
-                            <ArrowRight size={15} />
-                          </button>
-                        </div>
-                      )}
-
-                    {aiRoadmapError && (
-                      <div className="mt-5 rounded-xl border border-red-200 bg-red-50 p-4">
-                        <p className="text-sm text-red-600">
-                          {aiRoadmapError}
-                        </p>
-                      </div>
+                    {t(
+                      "roadmap.nextStepDescription"
                     )}
-
-                    {aiRoadmapLoading && (
-                      <div className="mt-5 rounded-2xl bg-blue-50/60 p-5">
-                        <p className="text-sm font-semibold text-slate-900">
-                          AI sedang menyusun roadmap personalmu...
-                        </p>
-
-                        <p className="mt-1 text-sm leading-6 text-slate-500">
-                          Analisis dilakukan berdasarkan hasil
-                          kompetensi dan skill gap pada Skill Check terakhir.
-                        </p>
-                      </div>
-                    )}
-
-                    {aiRoadmap &&
-                      !aiRoadmapLoading && (
-                        <div className="mt-5 rounded-2xl border border-slate-100 bg-slate-50 p-5">
-                          <div className="mb-4 flex items-center gap-3">
-                            <span className="rounded-md bg-yellow-500 px-2 py-1 text-[10px] font-bold text-white">
-                              AI
-                            </span>
-
-                            <div>
-                              <p className="text-sm font-bold text-slate-900">
-                                Roadmap Personal
-                              </p>
-
-                              <p className="text-xs text-slate-400">
-                                Berdasarkan Skill Check terakhir
-                              </p>
-                            </div>
-                          </div>
-
-                          <div className="whitespace-pre-line text-sm leading-7 text-slate-600">
-                            {aiRoadmap
-                              .replace(
-                                /\*\*/g,
-                                ""
-                              )
-                              .replace(
-                                /^#+\s*/gm,
-                                ""
-                              )
-                              .replace(
-                                /^\-\s+/gm,
-                                "• "
-                              )}
-                          </div>
-                        </div>
-                      )}
-                  </section>
-
-                  {/* =================================================
-                      BOTTOM CTA
-                  ================================================= */}
-
-                  <section className="mt-6 rounded-[26px] border border-blue-100 bg-gradient-to-br from-white to-blue-50/50 p-6">
-                    <p className="text-xs font-bold uppercase tracking-wider text-blue-600">
-                      Setelah Pengembangan
-                    </p>
-
-                    <h2 className="mt-2 text-lg font-bold text-slate-950">
-                      Ukur kompetensimu kembali
-                    </h2>
-
-                    <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-500">
-                      Setelah kamu mengembangkan kompetensi,
-                      lakukan pengukuran kembali untuk melihat
-                      apakah gap terhadap benchmark sudah berkurang.
-                    </p>
-
-                    <button
-                      type="button"
-                      onClick={() =>
-                        router.push(
-                          `/skillcheck?career=${career.id}`
-                        )
-                      }
-                      className="mt-5 inline-flex items-center gap-2 rounded-xl bg-blue-600 px-5 py-3 text-sm font-semibold text-white shadow-md shadow-blue-600/20 transition hover:bg-blue-700"
-                    >
-                      Ukur Kompetensi Lagi
-                      <ArrowRight size={16} />
-                    </button>
-                  </section>
-                </>
-              )}
-            </>
-          )}
-
-          {/* =================================================
-              FOOTER NOTE
-          ================================================= */}
-
-          <div className="mt-6 flex items-center gap-2 px-1 pb-8 text-xs text-slate-400">
-            <CheckCircle2
-              size={14}
-              className="text-emerald-500"
-            />
-
-            Data berdasarkan Skill Check terakhir.
-          </div>
-        </div>
-      </main>
-
-      {/* =====================================================
-          ROADMAP DETAIL MODAL
-      ===================================================== */}
-
-      {isPremium &&
-        selectedCard && (
-          <div
-            className="fixed inset-0 z-50 flex items-end justify-center bg-slate-950/40 px-0 py-0 backdrop-blur-sm sm:items-center sm:px-4 sm:py-6"
-            onMouseDown={() =>
-              setSelectedCard(null)
-            }
-          >
-            <div
-              className="flex max-h-[94vh] w-full max-w-2xl flex-col overflow-hidden rounded-t-[28px] bg-white shadow-2xl sm:max-h-[90vh] sm:rounded-[28px]"
-              onMouseDown={(event) =>
-                event.stopPropagation()
-              }
-            >
-
-              {/* =================================================
-                  MODAL HEADER
-              ================================================= */}
-
-              <div className="shrink-0 border-b border-slate-100 px-5 py-5 sm:px-6">
-                <div className="flex items-start justify-between gap-4">
-                  <div className="min-w-0">
-                    <p className="text-[10px] font-bold uppercase tracking-wider text-blue-600 sm:text-xs">
-                      Roadmap Pengembangan
-                    </p>
-
-                    <h2 className="mt-2 text-xl font-bold leading-tight text-slate-950 sm:text-2xl">
-                      {selectedCard.skillName}
-                    </h2>
-
-                    <p className="mt-2 text-xs leading-5 text-slate-500 sm:text-sm">
-                      Fokus untuk menutup gap{" "}
-                      <span className="font-semibold text-slate-700">
-                        {selectedCard.gap}
-                      </span>{" "}
-                      poin menuju benchmark.
-                    </p>
-                  </div>
-
-                  <button
-                    type="button"
-                    onClick={() =>
-                      setSelectedCard(null)
-                    }
-                    className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-slate-400 transition hover:bg-slate-100 hover:text-slate-700"
-                    aria-label="Tutup detail roadmap"
-                  >
-                    <X size={18} />
-                  </button>
-                </div>
-
-                {/* =================================================
-                    SCORE SUMMARY
-                ================================================= */}
-
-                <div className="mt-5 grid grid-cols-1 gap-2.5 sm:grid-cols-3 sm:gap-3">
-                  <div className="flex items-center justify-between rounded-xl bg-slate-50 px-4 py-3 sm:block sm:p-3">
-                    <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-400">
-                      Skill Kamu
-                    </p>
-
-                    <p className="text-lg font-bold text-slate-900 sm:mt-1">
-                      {selectedCard.score}
-                    </p>
-                  </div>
-
-                  <div className="flex items-center justify-between rounded-xl bg-slate-50 px-4 py-3 sm:block sm:p-3">
-                    <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-400">
-                      Benchmark
-                    </p>
-
-                    <p className="text-lg font-bold text-slate-900 sm:mt-1">
-                      {selectedCard.targetScore}
-                    </p>
-                  </div>
-
-                  <div className="flex items-center justify-between rounded-xl bg-yellow-50 px-4 py-3 sm:block sm:p-3">
-                    <p className="text-[10px] font-semibold uppercase tracking-wide text-yellow-700">
-                      Gap
-                    </p>
-
-                    <p className="text-lg font-bold text-yellow-700 sm:mt-1">
-                      {selectedCard.gap}
-                    </p>
-                  </div>
-                </div>
-              </div>
-
-              {/* =================================================
-                  MODAL BODY
-              ================================================= */}
-
-              <div className="min-h-0 overflow-y-auto px-5 py-6 sm:px-6">
-
-                <div className="mb-5">
-                  <p className="text-[10px] font-bold uppercase tracking-wider text-blue-600 sm:text-xs">
-                    Langkah Pengembangan
                   </p>
 
-                  <div className="mt-1 flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
-                    <h3 className="text-lg font-bold text-slate-950">
-                      Fokus pengembangan kompetensi
-                    </h3>
-
-                    {selectedCard.roadmapItems.length > 0 && (
-                      <span className="text-xs font-medium text-slate-400">
-                        {selectedCard.roadmapItems.length} langkah
-                      </span>
-                    )}
-                  </div>
                 </div>
 
-                {selectedCard
-                  .roadmapItems
-                  .length === 0 ? (
-                  <div className="rounded-2xl border border-dashed border-yellow-200 bg-yellow-50/50 p-6 text-center sm:p-8">
-                    <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-yellow-100 text-yellow-700">
-                      <Target size={21} />
-                    </div>
-
-                    <p className="mt-4 text-sm font-bold text-slate-800">
-                      Detail roadmap belum tersedia
-                    </p>
-
-                    <p className="mx-auto mt-2 max-w-md text-xs leading-6 text-slate-500">
-                      Kompetensi ini sudah teridentifikasi
-                      sebagai prioritas pengembangan, tetapi
-                      langkah roadmap untuk kompetensi ini
-                      belum dimasukkan ke sistem.
-                    </p>
-
-                    <div className="mx-auto mt-5 max-w-md rounded-xl border border-white bg-white p-4 text-left">
-                      <p className="text-[10px] font-bold uppercase tracking-wide text-slate-400">
-                        Fokus Saat Ini
-                      </p>
-
-                      <p className="mt-1 text-sm font-semibold text-slate-900">
-                        Kurangi gap dari{" "}
-                        {selectedCard.score}{" "}
-                        menuju{" "}
-                        {selectedCard.targetScore}
-                      </p>
-
-                      <div className="mt-3 h-2 overflow-hidden rounded-full bg-slate-100">
-                        <div
-                          className="h-full rounded-full bg-blue-600"
-                          style={{
-                            width: `${Math.min(
-                              Math.max(
-                                selectedCard.score,
-                                0
-                              ),
-                              100
-                            )}%`,
-                          }}
-                        />
-                      </div>
-                    </div>
-                  </div>
-                ) : (
-                  <div className="space-y-4">
-                    {selectedCard
-                      .roadmapItems
-                      .map(
-                        (
-                          item,
-                          index
-                        ) => {
-                          const statusLabel =
-                            getStatusLabel(
-                              item.status
-                            );
-
-                          const recommendationLabel =
-                            getRecommendationLabel(
-                              item.recommendation_type
-                            );
-
-                          return (
-                            <div
-                              key={
-                                item.id
-                              }
-                              className="rounded-2xl border border-slate-200 bg-white p-4 shadow-[0_5px_20px_rgba(15,23,42,0.03)] sm:p-5"
-                            >
-                              <div className="flex gap-3 sm:gap-4">
-
-                                {/* STEP */}
-
-                                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-blue-600 text-xs font-bold text-white sm:h-10 sm:w-10">
-                                  {String(
-                                    index + 1
-                                  ).padStart(
-                                    2,
-                                    "0"
-                                  )}
-                                </div>
-
-                                {/* CONTENT */}
-
-                                <div className="min-w-0 flex-1">
-                                  <div className="flex flex-wrap items-start gap-2">
-                                    <h4 className="min-w-0 flex-1 text-sm font-bold leading-6 text-slate-900">
-                                      {
-                                        item.title
-                                      }
-                                    </h4>
-                                  </div>
-
-                                  <div className="mt-2 flex flex-wrap gap-2">
-                                    {recommendationLabel && (
-                                      <span className="rounded-full bg-blue-50 px-2.5 py-1 text-[10px] font-semibold text-blue-600">
-                                        {
-                                          recommendationLabel
-                                        }
-                                      </span>
-                                    )}
-
-                                    <span
-                                      className={`rounded-full px-2.5 py-1 text-[10px] font-semibold ${
-                                        statusLabel ===
-                                        "Selesai"
-                                          ? "bg-emerald-50 text-emerald-600"
-                                          : statusLabel ===
-                                            "Sedang Berjalan"
-                                          ? "bg-blue-50 text-blue-600"
-                                          : "bg-slate-100 text-slate-500"
-                                      }`}
-                                    >
-                                      {statusLabel}
-                                    </span>
-                                  </div>
-
-                                  <div className="mt-4 rounded-xl bg-slate-50 p-3.5 sm:p-4">
-                                    <p className="text-[10px] font-bold uppercase tracking-wide text-slate-400">
-                                      Rekomendasi
-                                    </p>
-
-                                    <p className="mt-1.5 text-sm leading-6 text-slate-600">
-                                      {
-                                        item.description
-                                      }
-                                    </p>
-                                  </div>
-                                </div>
-                              </div>
-                            </div>
-                          );
-                        }
-                      )}
-                  </div>
-                )}
-
-                {/* MODAL FOOTER INFO */}
-
-                {selectedCard
-                  .roadmapItems
-                  .length > 0 && (
-                  <div className="mt-6 rounded-2xl border border-blue-100 bg-blue-50/60 p-4">
-                    <div className="flex items-start gap-3">
-                      <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-blue-100 text-blue-600">
-                        <CheckCircle2 size={16} />
-                      </div>
-
-                      <div>
-                        <p className="text-xs font-bold text-slate-800">
-                          Tujuan pengembangan
-                        </p>
-
-                        <p className="mt-1 text-xs leading-5 text-slate-500">
-                          Gunakan langkah di atas untuk
-                          memperkuat kompetensi{" "}
-                          <span className="font-semibold text-slate-700">
-                            {selectedCard.skillName}
-                          </span>{" "}
-                          dan mengurangi gap terhadap benchmark.
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-              </div>
-
-              {/* =================================================
-                  MODAL CLOSE
-              ================================================= */}
-
-              <div className="shrink-0 border-t border-slate-100 bg-white px-5 py-4 sm:px-6">
                 <button
                   type="button"
                   onClick={() =>
-                    setSelectedCard(null)
+                    router.push(
+                      `/skillcheck?career=${career.id}`
+                    )
                   }
-                  className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-600 transition hover:bg-slate-50"
+                  className="inline-flex shrink-0 items-center justify-center gap-2 rounded-xl bg-blue-600 px-6 py-3 text-sm font-semibold text-white shadow-md shadow-blue-600/20 transition hover:-translate-y-0.5 hover:bg-blue-700"
                 >
-                  Tutup Detail
+                  {t(
+                    "roadmap.reassess"
+                  )}
+                  <ArrowRight size={16} />
                 </button>
+
               </div>
 
-            </div>
-          </div>
+            </section>
+
+          </>
         )}
-    </>
+
+        <div className="mt-6 pb-8 text-xs text-slate-400">
+          {t(
+            "roadmap.footer"
+          )}
+        </div>
+
+      </div>
+
+    </main>
   );
 }
 
 /* =========================================================
-   PAGE EXPORT
+   STAT
+========================================================= */
+
+function RoadmapStat({
+  label,
+  value,
+  icon,
+  textValue = false,
+}: {
+  label: string;
+  value: number | string;
+  icon: React.ReactNode;
+  textValue?: boolean;
+}) {
+  return (
+    <div className="rounded-[22px] border border-slate-200 bg-white p-5 shadow-[0_8px_25px_rgba(15,23,42,0.035)]">
+
+      <div className="flex items-center gap-3">
+
+        <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-50 text-blue-600">
+          {icon}
+        </div>
+
+        <p className="text-xs font-bold uppercase tracking-wider text-slate-400">
+          {label}
+        </p>
+
+      </div>
+
+      <p
+        className={`mt-5 font-bold text-slate-950 ${
+          textValue
+            ? "text-lg"
+            : "text-3xl"
+        }`}
+      >
+        {value}
+      </p>
+
+    </div>
+  );
+}
+
+/* =========================================================
+   EXPORT
 ========================================================= */
 
 export default function RoadmapPage() {
   return (
     <Suspense
       fallback={
-        <main className="min-h-screen bg-[#f7faff] px-4 py-6 sm:px-6 sm:py-8">
+        <main className="min-h-screen bg-[#f7faff] px-6 py-8">
           <div className="mx-auto max-w-6xl animate-pulse">
-            <div className="h-5 w-36 rounded-full bg-slate-200" />
 
-            <div className="mt-5 h-10 w-80 max-w-full rounded-xl bg-slate-200" />
+            <div className="h-5 w-32 rounded-full bg-slate-200" />
+
+            <div className="mt-5 h-10 w-80 rounded-xl bg-slate-200" />
 
             <div className="mt-3 h-4 w-[520px] max-w-full rounded-full bg-slate-100" />
 
-            <div className="mt-8 h-32 rounded-[26px] bg-white" />
+            <div className="mt-8 h-40 rounded-[26px] bg-white" />
+
           </div>
         </main>
       }
     >
       <RoadmapPageContent />
     </Suspense>
-  );
-}
-
-/* =========================================================
-   ROADMAP ICON
-========================================================= */
-
-function MapIcon() {
-  return (
-    <svg
-      width="19"
-      height="19"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    >
-      <path d="m3 6 6-3 6 3 6-3v15l-6 3-6-3-6 3V6Z" />
-      <path d="M9 3v15" />
-      <path d="M15 6v15" />
-    </svg>
   );
 }

@@ -23,6 +23,7 @@ import {
 } from "lucide-react";
 
 import { supabase } from "@/lib/supabase";
+import { useLanguage } from "@/components/language-provider";
 import { isPremiumUser } from "@/lib/subscription";
 
 type UserProfile = {
@@ -68,42 +69,72 @@ type Skill = {
    HELPERS
 ========================================================= */
 
-function getLevel(score: number) {
-  if (score >= 85) return "Strong";
-  if (score >= 70) return "Ready";
-  if (score >= 50) return "Developing";
-  return "Beginner";
-}
-
-function getLevelDescription(score: number) {
+function getLevel(
+  score: number,
+  t: (path: string) => string
+) {
   if (score >= 85) {
-    return "Kompetensi berada di atas benchmark awal.";
+    return t("dashboard.levelStrong");
   }
 
   if (score >= 70) {
-    return "Kompetensi sudah memenuhi benchmark.";
+    return t("dashboard.levelReady");
   }
 
   if (score >= 50) {
-    return "Kompetensi sedang berkembang.";
+    return t("dashboard.levelDeveloping");
   }
 
-  return "Kompetensi masih membutuhkan pengembangan.";
+  return t("dashboard.levelBeginner");
 }
 
-function formatDate(date: string | null) {
+function getLevelDescription(
+  score: number,
+  t: (path: string) => string
+) {
+  if (score >= 85) {
+    return t("dashboard.levelDescriptionStrong");
+  }
+
+  if (score >= 70) {
+    return t("dashboard.levelDescriptionReady");
+  }
+
+  if (score >= 50) {
+    return t("dashboard.levelDescriptionDeveloping");
+  }
+
+  return t("dashboard.levelDescriptionBeginner");
+}
+
+function formatDate(
+  date: string | null,
+  language: string
+) {
   if (!date) return "-";
 
-  return new Intl.DateTimeFormat("id-ID", {
-    day: "numeric",
-    month: "long",
-    year: "numeric",
-  }).format(new Date(date));
+  return new Intl.DateTimeFormat(
+    language === "en" ? "en-US" : "id-ID",
+    {
+      day: "numeric",
+      month: "long",
+      year: "numeric",
+    }
+  ).format(new Date(date));
 }
 
-function getAssessmentLabel(type: string) {
-  if (type === "baseline") return "Baseline";
-  if (type === "reassessment") return "Reassessment";
+function getAssessmentLabel(
+  type: string,
+  t: (path: string) => string
+) {
+  if (type === "baseline") {
+    return t("dashboard.baseline");
+  }
+
+  if (type === "reassessment") {
+    return t("dashboard.reassessment");
+  }
+
   return type;
 }
 
@@ -113,21 +144,31 @@ function getAssessmentLabel(type: string) {
 
 export default function DashboardPage() {
   const router = useRouter();
+  const { t, language } = useLanguage();
 
-  const [user, setUser] = useState<UserProfile | null>(null);
-  const [career, setCareer] = useState<Career | null>(null);
+  const [user, setUser] =
+    useState<UserProfile | null>(null);
+
+  const [career, setCareer] =
+    useState<Career | null>(null);
+
   const [assessment, setAssessment] =
     useState<Assessment | null>(null);
 
   const [skillResults, setSkillResults] =
     useState<SkillResult[]>([]);
 
-  const [skills, setSkills] = useState<Skill[]>([]);
+  const [skills, setSkills] =
+    useState<Skill[]>([]);
 
-  const [isPremium, setIsPremium] = useState(false);
+  const [isPremium, setIsPremium] =
+    useState(false);
 
-  const [loading, setLoading] = useState(true);
-  const [errorMessage, setErrorMessage] = useState("");
+  const [loading, setLoading] =
+    useState(true);
+
+  const [errorMessage, setErrorMessage] =
+    useState("");
 
   /* =========================================================
      REFRESH SUBSCRIPTION
@@ -135,7 +176,9 @@ export default function DashboardPage() {
 
   async function refreshSubscription() {
     try {
-      const premium = await isPremiumUser();
+      const premium =
+        await isPremiumUser();
+
       setIsPremium(premium);
     } catch (error) {
       console.error(
@@ -174,18 +217,21 @@ export default function DashboardPage() {
            SUBSCRIPTION
         ========================= */
 
-        const premium = await isPremiumUser();
+        const premium =
+          await isPremiumUser();
+
         setIsPremium(premium);
 
         /* =========================
            USER
         ========================= */
 
-        const { data: userData } = await supabase
-          .from("users")
-          .select("id, name, email")
-          .eq("id", authUser.id)
-          .maybeSingle();
+        const { data: userData } =
+          await supabase
+            .from("users")
+            .select("id, name, email")
+            .eq("id", authUser.id)
+            .maybeSingle();
 
         setUser(
           userData ?? {
@@ -193,7 +239,8 @@ export default function DashboardPage() {
             name:
               authUser.user_metadata?.name ??
               null,
-            email: authUser.email ?? null,
+            email:
+              authUser.email ?? null,
           }
         );
 
@@ -229,7 +276,9 @@ export default function DashboardPage() {
           return;
         }
 
-        setAssessment(assessmentData);
+        setAssessment(
+          assessmentData
+        );
 
         /* =========================
            CAREER
@@ -272,7 +321,10 @@ export default function DashboardPage() {
           .select(
             "id, assessment_id, career_id, skill_id, score, target_score, gap, status"
           )
-          .eq("user_id", authUser.id)
+          .eq(
+            "user_id",
+            authUser.id
+          )
           .eq(
             "assessment_id",
             assessmentData.id
@@ -288,7 +340,7 @@ export default function DashboardPage() {
           );
 
           setErrorMessage(
-            "Data kompetensi gagal dimuat."
+            t("dashboard.dataLoadError")
           );
 
           setLoading(false);
@@ -324,7 +376,10 @@ export default function DashboardPage() {
           } = await supabase
             .from("skills")
             .select("id, name")
-            .in("id", skillIds);
+            .in(
+              "id",
+              skillIds
+            );
 
           if (skillError) {
             console.error(
@@ -346,7 +401,7 @@ export default function DashboardPage() {
         );
 
         setErrorMessage(
-          "Terjadi kesalahan saat memuat dashboard."
+          t("dashboard.loadError")
         );
 
         setLoading(false);
@@ -354,7 +409,7 @@ export default function DashboardPage() {
     }
 
     loadDashboard();
-  }, [router]);
+  }, [router, t]);
 
   /* =========================================================
      REFRESH PREMIUM WHEN TAB BECOMES ACTIVE
@@ -388,10 +443,16 @@ export default function DashboardPage() {
   ========================================================= */
 
   const skillNameMap = useMemo(() => {
-    const map = new Map<string, string>();
+    const map = new Map<
+      string,
+      string
+    >();
 
     skills.forEach((skill) => {
-      map.set(skill.id, skill.name);
+      map.set(
+        skill.id,
+        skill.name
+      );
     });
 
     return map;
@@ -438,7 +499,8 @@ export default function DashboardPage() {
           skillResults.length
       ),
       completed,
-      total: skillResults.length,
+      total:
+        skillResults.length,
       needsDevelopment,
     };
   }, [skillResults]);
@@ -448,8 +510,12 @@ export default function DashboardPage() {
   ========================================================= */
 
   const level = useMemo(
-    () => getLevel(summary.average),
-    [summary.average]
+    () =>
+      getLevel(
+        summary.average,
+        t
+      ),
+    [summary.average, t]
   );
 
   /* =========================================================
@@ -502,7 +568,9 @@ export default function DashboardPage() {
           <div className="mt-3 h-4 w-96 max-w-full rounded-full bg-slate-100" />
 
           <div className="mt-8 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-            {Array.from({ length: 4 }).map(
+            {Array.from({
+              length: 4,
+            }).map(
               (_, index) => (
                 <div
                   key={index}
@@ -518,6 +586,7 @@ export default function DashboardPage() {
             <div className="h-96 rounded-[26px] bg-white" />
             <div className="h-96 rounded-[26px] bg-white" />
           </div>
+
         </div>
       </main>
     );
@@ -539,11 +608,11 @@ export default function DashboardPage() {
             </div>
 
             <p className="mt-5 text-xs font-bold uppercase tracking-wider text-red-500">
-              Dashboard
+              {t("dashboard.title")}
             </p>
 
             <h1 className="mt-2 text-2xl font-bold text-slate-950">
-              Terjadi Kesalahan
+              {t("dashboard.errorTitle")}
             </h1>
 
             <p className="mt-3 text-sm leading-6 text-slate-500">
@@ -557,11 +626,12 @@ export default function DashboardPage() {
               }
               className="mt-6 inline-flex items-center gap-2 rounded-xl bg-blue-600 px-5 py-3 text-sm font-semibold text-white shadow-lg shadow-blue-600/20 transition hover:-translate-y-0.5 hover:bg-blue-700"
             >
-              Coba Lagi
+              {t("dashboard.retry")}
               <ArrowRight size={16} />
             </button>
 
           </div>
+
         </div>
       </main>
     );
@@ -585,20 +655,20 @@ export default function DashboardPage() {
               </div>
 
               <p className="mt-6 text-xs font-bold uppercase tracking-wider text-blue-600">
-                Dashboard
+                {t("dashboard.title")}
               </p>
 
               <h1 className="mt-2 text-3xl font-bold tracking-tight text-slate-950 sm:text-4xl">
-                Halo,{" "}
+                {t("dashboard.hello")},{" "}
                 {user?.name ||
-                  "SkillMap User"}{" "}
+                  t("dashboard.defaultUser")}{" "}
                 👋
               </h1>
 
               <p className="mt-3 max-w-xl text-sm leading-7 text-slate-500">
-                Mulai pemetaan kompetensi untuk
-                mengetahui posisi skillmu terhadap
-                benchmark karier yang kamu tuju.
+                {t(
+                  "dashboard.emptyDescription"
+                )}
               </p>
 
               <button
@@ -610,7 +680,9 @@ export default function DashboardPage() {
                 }
                 className="mt-7 inline-flex items-center gap-2 rounded-xl bg-blue-600 px-6 py-3.5 text-sm font-semibold text-white shadow-lg shadow-blue-600/20 transition hover:-translate-y-0.5 hover:bg-blue-700"
               >
-                Mulai Skill Check
+                {t(
+                  "dashboard.startSkillCheck"
+                )}
                 <ArrowRight size={17} />
               </button>
 
@@ -627,11 +699,13 @@ export default function DashboardPage() {
             <div className="mb-4">
 
               <p className="text-xs font-bold uppercase tracking-wider text-blue-600">
-                Mulai dari sini
+                {t("dashboard.startHere")}
               </p>
 
               <h2 className="mt-1 text-xl font-bold text-slate-950">
-                Tiga langkah menuju kesiapan karier
+                {t(
+                  "dashboard.threeSteps"
+                )}
               </h2>
 
             </div>
@@ -643,8 +717,12 @@ export default function DashboardPage() {
                 icon={
                   <ClipboardCheck size={20} />
                 }
-                title="Ukur Kompetensi"
-                description="Kerjakan Skill Check sesuai target kariermu."
+                title={t(
+                  "dashboard.stepMeasureTitle"
+                )}
+                description={t(
+                  "dashboard.stepMeasureDescription"
+                )}
               />
 
               <EmptyStep
@@ -652,8 +730,12 @@ export default function DashboardPage() {
                 icon={
                   <Target size={20} />
                 }
-                title="Temukan Skill Gap"
-                description="Lihat kompetensi yang sudah kuat dan yang masih perlu dikembangkan."
+                title={t(
+                  "dashboard.stepGapTitle"
+                )}
+                description={t(
+                  "dashboard.stepGapDescription"
+                )}
               />
 
               <EmptyStep
@@ -661,11 +743,16 @@ export default function DashboardPage() {
                 icon={
                   <TrendingUp size={20} />
                 }
-                title="Bangun Kesiapan"
-                description="Gunakan roadmap untuk menentukan langkah pengembangan berikutnya."
+                title={t(
+                  "dashboard.stepRoadmapTitle"
+                )}
+                description={t(
+                  "dashboard.stepRoadmapDescription"
+                )}
               />
 
             </div>
+
           </section>
 
         </div>
@@ -699,21 +786,22 @@ export default function DashboardPage() {
                 </span>
 
                 <p className="text-xs font-bold uppercase tracking-wider text-blue-600">
-                  Dashboard
+                  {t("dashboard.title")}
                 </p>
 
               </div>
 
               <h1 className="mt-4 text-3xl font-bold tracking-tight text-slate-950 sm:text-4xl">
-                Halo,{" "}
+                {t("dashboard.hello")},{" "}
                 {user?.name ||
-                  "SkillMap User"}{" "}
+                  t("dashboard.defaultUser")}{" "}
                 👋
               </h1>
 
               <p className="mt-2 text-sm leading-6 text-slate-500">
-                Berikut ringkasan perkembangan
-                kompetensimu.
+                {t(
+                  "dashboard.subtitle"
+                )}
               </p>
 
             </div>
@@ -724,7 +812,9 @@ export default function DashboardPage() {
 
                 <Target size={14} />
 
-                Target:
+                {t(
+                  "dashboard.targetLabel"
+                )}
 
                 <span className="font-bold">
                   {career.name}
@@ -736,7 +826,9 @@ export default function DashboardPage() {
 
                 <ClipboardCheck size={14} />
 
-                Assessment #
+                {t(
+                  "dashboard.assessmentLabel"
+                )} #
                 {assessment.attempt_number}
 
               </span>
@@ -756,12 +848,17 @@ export default function DashboardPage() {
                 )}
 
                 {isPremium
-                  ? "Premium"
-                  : "Freemium"}
+                  ? t(
+                      "dashboard.premium"
+                    )
+                  : t(
+                      "dashboard.free"
+                    )}
 
               </span>
 
             </div>
+
           </div>
 
           <div className="pointer-events-none absolute -right-20 -top-24 h-64 w-64 rounded-full bg-blue-100/70 blur-3xl" />
@@ -780,9 +877,13 @@ export default function DashboardPage() {
             icon={
               <BarChart3 size={20} />
             }
-            label="Skor Kompetensi"
+            label={t(
+              "dashboard.competencyScore"
+            )}
             value={summary.average}
-            description="dari skala 100"
+            description={t(
+              "dashboard.outOf100"
+            )}
             tone="blue"
           />
 
@@ -790,10 +891,13 @@ export default function DashboardPage() {
             icon={
               <Trophy size={20} />
             }
-            label="Level"
+            label={t(
+              "dashboard.level"
+            )}
             value={level}
             description={getLevelDescription(
-              summary.average
+              summary.average,
+              t
             )}
             tone="yellow"
           />
@@ -802,9 +906,13 @@ export default function DashboardPage() {
             icon={
               <CheckCircle2 size={20} />
             }
-            label="Benchmark"
+            label={t(
+              "dashboard.benchmark"
+            )}
             value={`${summary.completed}/${summary.total}`}
-            description="kompetensi terpenuhi"
+            description={t(
+              "dashboard.skillsMet"
+            )}
             tone="green"
           />
 
@@ -812,11 +920,15 @@ export default function DashboardPage() {
             icon={
               <TrendingUp size={20} />
             }
-            label="Perlu Dikembangkan"
+            label={t(
+              "dashboard.needsDevelopment"
+            )}
             value={
               summary.needsDevelopment
             }
-            description="kompetensi belum memenuhi benchmark"
+            description={t(
+              "dashboard.skillsBelowBenchmark"
+            )}
             tone="orange"
           />
 
@@ -835,11 +947,15 @@ export default function DashboardPage() {
               <div className="flex items-center gap-2">
 
                 <span className="text-xs font-bold uppercase tracking-wider text-blue-500">
-                  Target Karier
+                  {t(
+                    "dashboard.currentCareer"
+                  )}
                 </span>
 
                 <span className="rounded-full bg-emerald-50 px-2.5 py-1 text-[10px] font-bold text-emerald-600">
-                  Aktif
+                  {t(
+                    "dashboard.active"
+                  )}
                 </span>
 
               </div>
@@ -858,12 +974,15 @@ export default function DashboardPage() {
                 <Clock3 size={13} />
 
                 <span>
-                  Pemetaan terakhir:
+                  {t(
+                    "dashboard.lastMapping"
+                  )}
                 </span>
 
                 <span className="font-medium text-slate-600">
                   {formatDate(
-                    assessment.completed_at
+                    assessment.completed_at,
+                    language
                   )}
                 </span>
 
@@ -871,7 +990,8 @@ export default function DashboardPage() {
 
                 <span>
                   {getAssessmentLabel(
-                    assessment.assessment_type
+                    assessment.assessment_type,
+                    t
                   )}
                 </span>
 
@@ -890,7 +1010,9 @@ export default function DashboardPage() {
                 }
                 className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 transition hover:-translate-y-0.5 hover:border-blue-200 hover:bg-blue-50 hover:text-blue-700"
               >
-                Lihat Hasil
+                {t(
+                  "dashboard.viewResult"
+                )}
                 <ArrowRight size={15} />
               </button>
 
@@ -903,7 +1025,9 @@ export default function DashboardPage() {
                 }
                 className="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white shadow-md shadow-blue-600/20 transition hover:-translate-y-0.5 hover:bg-blue-700"
               >
-                Ukur Lagi
+                {t(
+                  "dashboard.measureAgain"
+                )}
                 <Zap size={15} />
               </button>
 
@@ -935,14 +1059,18 @@ export default function DashboardPage() {
                   </span>
 
                   <p className="text-xs font-bold uppercase tracking-wider text-blue-500">
-                    Kompetensi Kuat
+                    {t(
+                      "dashboard.strongSkills"
+                    )}
                   </p>
 
                 </div>
 
                 <h2 className="mt-3 text-lg font-bold text-slate-950">
                   {strongSkills.length}{" "}
-                  kompetensi terpenuhi
+                  {t(
+                    "dashboard.skillsMetCount"
+                  )}
                 </h2>
 
               </div>
@@ -956,7 +1084,9 @@ export default function DashboardPage() {
                 }
                 className="inline-flex items-center gap-1 text-xs font-semibold text-blue-600 transition hover:text-blue-700"
               >
-                Lihat semua
+                {t(
+                  "dashboard.viewAll"
+                )}
                 <ChevronRight size={14} />
               </button>
 
@@ -967,8 +1097,9 @@ export default function DashboardPage() {
               {strongSkills.length ===
               0 ? (
                 <div className="rounded-2xl border border-dashed border-slate-200 bg-slate-50 p-5 text-center text-sm text-slate-400">
-                  Belum ada kompetensi yang
-                  memenuhi benchmark.
+                  {t(
+                    "dashboard.noStrongSkills"
+                  )}
                 </div>
               ) : (
                 strongSkills
@@ -982,10 +1113,13 @@ export default function DashboardPage() {
                         ) ??
                         result.skill_id
                       }
-                      score={result.score}
+                      score={
+                        result.score
+                      }
                       target={
                         result.target_score
                       }
+                      t={t}
                     />
                   ))
               )}
@@ -1002,9 +1136,12 @@ export default function DashboardPage() {
                 }
                 className="mt-4 text-xs font-semibold text-blue-600 hover:text-blue-700"
               >
-                +{" "}
+                +
+                {" "}
                 {strongSkills.length - 5}{" "}
-                kompetensi lainnya
+                {t(
+                  "dashboard.otherSkills"
+                )}
               </button>
             )}
 
@@ -1029,13 +1166,17 @@ export default function DashboardPage() {
                     </span>
 
                     <p className="text-xs font-bold uppercase tracking-wider text-yellow-600">
-                      Prioritas Pengembangan
+                      {t(
+                        "dashboard.developmentPriority"
+                      )}
                     </p>
 
                   </div>
 
                   <h2 className="mt-3 text-lg font-bold text-slate-950">
-                    Analisis Skill Gap
+                    {t(
+                      "dashboard.skillGapAnalysis"
+                    )}
                   </h2>
 
                 </div>
@@ -1043,7 +1184,9 @@ export default function DashboardPage() {
                 {!isPremium && (
                   <span className="inline-flex items-center gap-1.5 rounded-full bg-yellow-50 px-2.5 py-1 text-[10px] font-bold text-yellow-700">
                     <Lock size={11} />
-                    Premium
+                    {t(
+                      "dashboard.premium"
+                    )}
                   </span>
                 )}
 
@@ -1051,6 +1194,7 @@ export default function DashboardPage() {
 
               {isPremium ? (
                 <>
+
                   <div className="mt-5 space-y-3">
 
                     {developmentSkills.length ===
@@ -1059,12 +1203,16 @@ export default function DashboardPage() {
 
                         <div className="flex items-center gap-2 text-sm font-semibold text-emerald-700">
                           <CheckCircle2 size={17} />
-                          Semua kompetensi sudah memenuhi benchmark.
+
+                          {t(
+                            "dashboard.allSkillsMet"
+                          )}
                         </div>
 
                         <p className="mt-2 text-xs leading-5 text-emerald-600">
-                          Pertahankan kemampuanmu dan
-                          lakukan reassessment secara berkala.
+                          {t(
+                            "dashboard.keepImproving"
+                          )}
                         </p>
 
                       </div>
@@ -1089,6 +1237,7 @@ export default function DashboardPage() {
                             gap={
                               result.gap
                             }
+                            t={t}
                           />
                         ))
                     )}
@@ -1105,10 +1254,13 @@ export default function DashboardPage() {
                       }
                       className="mt-4 inline-flex items-center gap-1 text-xs font-semibold text-blue-600 transition hover:text-blue-700"
                     >
-                      Lihat Skill Gap lengkap
+                      {t(
+                        "dashboard.viewFullSkillGap"
+                      )}
                       <ChevronRight size={14} />
                     </button>
                   )}
+
                 </>
               ) : (
                 <div className="mt-5 rounded-2xl border border-yellow-100 bg-gradient-to-br from-yellow-50/80 to-white p-5">
@@ -1122,13 +1274,15 @@ export default function DashboardPage() {
                     <div className="min-w-0">
 
                       <p className="text-sm font-bold text-slate-900">
-                        Temukan Skill Gap-mu
+                        {t(
+                          "dashboard.findSkillGap"
+                        )}
                       </p>
 
                       <p className="mt-1 text-xs leading-5 text-slate-500">
-                        Dapatkan analisis kompetensi
-                        yang masih perlu dikembangkan
-                        berdasarkan target kariermu.
+                        {t(
+                          "dashboard.skillGapLockedDescription"
+                        )}
                       </p>
 
                     </div>
@@ -1160,19 +1314,23 @@ export default function DashboardPage() {
                 </span>
 
                 <p className="text-xs font-bold uppercase tracking-wider text-blue-600">
-                  Langkah Berikutnya
+                  {t(
+                    "dashboard.nextStep"
+                  )}
                 </p>
 
               </div>
 
               <h2 className="mt-3 text-xl font-bold text-slate-950">
-                Lanjutkan pengembangan kompetensimu
+                {t(
+                  "dashboard.continueDevelopment"
+                )}
               </h2>
 
               <p className="mt-1 max-w-xl text-sm leading-6 text-slate-500">
-                Gunakan hasil Skill Check untuk
-                memahami gap dan menentukan fokus
-                pengembangan berikutnya.
+                {t(
+                  "dashboard.nextStepDescription"
+                )}
               </p>
 
             </div>
@@ -1201,7 +1359,9 @@ export default function DashboardPage() {
                   <Lock size={15} />
                 )}
 
-                Lihat Skill Gap
+                {t(
+                  "dashboard.viewSkillGap"
+                )}
 
               </button>
 
@@ -1227,7 +1387,9 @@ export default function DashboardPage() {
                   <Lock size={15} />
                 )}
 
-                Lihat Roadmap
+                {t(
+                  "dashboard.viewRoadmap"
+                )}
 
               </button>
 
@@ -1247,7 +1409,10 @@ export default function DashboardPage() {
               size={14}
               className="text-emerald-500"
             />
-            Data berdasarkan Skill Check terakhir
+
+            {t(
+              "dashboard.dataBasedOnLatest"
+            )}
           </div>
 
         </div>
@@ -1345,10 +1510,12 @@ function SkillStrongRow({
   name,
   score,
   target,
+  t,
 }: {
   name: string;
   score: number;
   target: number;
+  t: (path: string) => string;
 }) {
   const percentage = Math.min(
     Math.max(score, 0),
@@ -1367,7 +1534,10 @@ function SkillStrongRow({
           </p>
 
           <p className="mt-1 text-[11px] text-slate-400">
-            Target {target}
+            {t(
+              "dashboard.target"
+            )}{" "}
+            {target}
           </p>
 
         </div>
@@ -1402,11 +1572,13 @@ function DevelopmentRow({
   score,
   target,
   gap,
+  t,
 }: {
   name: string;
   score: number;
   target: number;
   gap: number;
+  t: (path: string) => string;
 }) {
   const percentage = Math.min(
     Math.max(score, 0),
@@ -1425,13 +1597,23 @@ function DevelopmentRow({
           </p>
 
           <p className="mt-1 text-[11px] text-slate-400">
-            Skor {score} · Target {target}
+            {t(
+              "dashboard.score"
+            )}{" "}
+            {score} ·{" "}
+            {t(
+              "dashboard.target"
+            )}{" "}
+            {target}
           </p>
 
         </div>
 
         <span className="shrink-0 rounded-full bg-yellow-50 px-2.5 py-1 text-[10px] font-bold text-yellow-700">
-          Gap {gap}
+          {t(
+            "dashboard.gap"
+          )}{" "}
+          {gap}
         </span>
 
       </div>

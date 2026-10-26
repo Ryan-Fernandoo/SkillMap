@@ -4,20 +4,27 @@ import {
   useEffect,
   useMemo,
   useState,
+  type ReactNode,
 } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
 import {
+  ArrowRight,
   BarChart3,
   CheckCircle2,
   Lock,
   Sparkles,
   Target,
   TrendingUp,
-  ArrowRight,
 } from "lucide-react";
+
+import { useRouter, useSearchParams } from "next/navigation";
 
 import { supabase } from "@/lib/supabase";
 import { isPremiumUser } from "@/lib/subscription";
+import { useLanguage } from "@/components/language-provider";
+
+/* =========================================================
+   TYPES
+========================================================= */
 
 type Career = {
   id: string;
@@ -48,11 +55,111 @@ type Skill = {
   name: string;
 };
 
+type CareerSkill = {
+  skill_id: string;
+  target_score: number;
+  importance: number;
+};
+
+type PriorityLevel =
+  | "critical"
+  | "high"
+  | "medium";
+
+type PriorityItem = {
+  result: SkillResult;
+  skillName: string;
+  importance: number;
+  priorityScore: number;
+  priorityLevel: PriorityLevel;
+};
+
+/* =========================================================
+   PRIORITY HELPERS
+========================================================= */
+
+/*
+ * Priority Score:
+ *
+ * Gap × (Importance / 5)
+ *
+ * Contoh:
+ *
+ * Gap 70 + Importance 5
+ * = 70 × 1
+ * = 70
+ *
+ * Gap 70 + Importance 4
+ * = 70 × 0.8
+ * = 56
+ *
+ * Gap 70 + Importance 3
+ * = 70 × 0.6
+ * = 42
+ */
+
+function calculatePriorityScore(
+  gap: number,
+  importance: number
+) {
+  const safeGap = Math.max(
+    0,
+    Math.min(gap, 100)
+  );
+
+  const safeImportance =
+    Math.max(
+      1,
+      Math.min(importance, 5)
+    );
+
+  return safeGap * (safeImportance / 5);
+}
+
+/*
+ * Priority score maksimal mengikuti gap.
+ *
+ * Critical:
+ * 60+
+ *
+ * High:
+ * 35–59
+ *
+ * Medium:
+ * <35
+ */
+
+function getPriorityLevel(
+  priorityScore: number
+): PriorityLevel {
+  if (priorityScore >= 60) {
+    return "critical";
+  }
+
+  if (priorityScore >= 35) {
+    return "high";
+  }
+
+  return "medium";
+}
+
+/* =========================================================
+   PAGE
+========================================================= */
+
 export default function SkillGapPage() {
   const router = useRouter();
-  const searchParams = useSearchParams();
+  const searchParams =
+    useSearchParams();
 
-  const careerId = searchParams.get("career");
+  const { t } =
+    useLanguage();
+
+  const careerId =
+    searchParams.get("career");
+
+  const assessmentId =
+    searchParams.get("assessment");
 
   const [career, setCareer] =
     useState<Career | null>(null);
@@ -66,6 +173,9 @@ export default function SkillGapPage() {
   const [skills, setSkills] =
     useState<Skill[]>([]);
 
+  const [careerSkills, setCareerSkills] =
+    useState<CareerSkill[]>([]);
+
   const [isPremium, setIsPremium] =
     useState(false);
 
@@ -75,9 +185,9 @@ export default function SkillGapPage() {
   const [errorMessage, setErrorMessage] =
     useState("");
 
-  /* =========================================================
+  /* =======================================================
      LOAD DATA
-  ========================================================= */
+  ======================================================= */
 
   useEffect(() => {
     async function loadSkillGap() {
@@ -85,9 +195,21 @@ export default function SkillGapPage() {
       setErrorMessage("");
 
       try {
+        /* =========================
+           USER
+        ========================= */
+
         const {
           data: { user },
+          error: userError,
         } = await supabase.auth.getUser();
+
+        if (userError) {
+          console.error(
+            "User error:",
+            userError
+          );
+        }
 
         if (!user) {
           router.push("/login");
@@ -95,7 +217,7 @@ export default function SkillGapPage() {
         }
 
         /* =========================
-           PREMIUM STATUS
+           PREMIUM
         ========================= */
 
         const premium =
@@ -104,31 +226,101 @@ export default function SkillGapPage() {
         setIsPremium(premium);
 
         /* =========================
-           LATEST COMPLETED ASSESSMENT
+           ASSESSMENT
         ========================= */
 
+        let assessmentQuery =
+          supabase
+            .from("assessments")
+            .select(
+              "id, career_id, attempt_number, assessment_type, completed_at"
+            )
+            .eq(
+              "user_id",
+              user.id
+            )
+            .eq(
+              "status",
+              "completed"
+            )
+            .order(
+              "completed_at",
+              {
+                ascending: false,
+              }
+            )
+            .limit(1);
+
+        if (assessmentId) {
+          assessmentQuery =
+            supabase
+              .from("assessments")
+              .select(
+                "id, career_id, attempt_number, assessment_type, completed_at"
+              )
+              .eq(
+                "id",
+                assessmentId
+              )
+              .eq(
+                "user_id",
+                user.id
+              )
+              .eq(
+                "status",
+                "completed"
+              )
+              .limit(1);
+        } else if (careerId) {
+          assessmentQuery =
+            supabase
+              .from("assessments")
+              .select(
+                "id, career_id, attempt_number, assessment_type, completed_at"
+              )
+              .eq(
+                "user_id",
+                user.id
+              )
+              .eq(
+                "career_id",
+                careerId
+              )
+              .eq(
+                "status",
+                "completed"
+              )
+              .order(
+                "completed_at",
+                {
+                  ascending: false,
+                }
+              )
+              .limit(1);
+        }
+
         const {
-          data: assessmentData,
+          data: assessmentRows,
           error: assessmentError,
-        } = await supabase
-          .from("assessments")
-          .select(
-            "id, career_id, attempt_number, assessment_type, completed_at"
-          )
-          .eq("user_id", user.id)
-          .eq("status", "completed")
-          .order("completed_at", {
-            ascending: false,
-          })
-          .limit(1)
-          .maybeSingle();
+        } = await assessmentQuery;
 
         if (assessmentError) {
           console.error(
             "Assessment error:",
             assessmentError
           );
+
+          setErrorMessage(
+            "Data assessment gagal dimuat."
+          );
+
+          setLoading(false);
+          return;
         }
+
+        const assessmentData =
+          assessmentRows?.[0] ??
+          null;
 
         if (!assessmentData) {
           setLoading(false);
@@ -140,7 +332,7 @@ export default function SkillGapPage() {
         );
 
         /* =========================
-           CAREER
+           SELECTED CAREER
         ========================= */
 
         const selectedCareerId =
@@ -168,9 +360,18 @@ export default function SkillGapPage() {
           );
         }
 
-        if (careerData) {
-          setCareer(careerData);
+        if (!careerData) {
+          setErrorMessage(
+            "Data career tidak ditemukan."
+          );
+
+          setLoading(false);
+          return;
         }
+
+        setCareer(
+          careerData
+        );
 
         /* =========================
            SKILL RESULTS
@@ -191,10 +392,7 @@ export default function SkillGapPage() {
           .eq(
             "assessment_id",
             assessmentData.id
-          )
-          .order("gap", {
-            ascending: false,
-          });
+          );
 
         if (resultError) {
           console.error(
@@ -224,16 +422,16 @@ export default function SkillGapPage() {
         const skillIds =
           Array.from(
             new Set(
-              results
-                .map(
-                  (result) =>
-                    result.skill_id
-                )
-                .filter(Boolean)
+              results.map(
+                (result) =>
+                  result.skill_id
+              )
             )
           );
 
-        if (skillIds.length > 0) {
+        if (
+          skillIds.length > 0
+        ) {
           const {
             data: skillData,
             error: skillError,
@@ -259,6 +457,43 @@ export default function SkillGapPage() {
           }
         }
 
+        /* =========================
+           CAREER SKILLS
+           + IMPORTANCE
+        ========================= */
+
+        const {
+          data: careerSkillData,
+          error: careerSkillError,
+        } = await supabase
+          .from("career_skills")
+          .select(
+            "skill_id, target_score, importance"
+          )
+          .eq(
+            "career_id",
+            selectedCareerId
+          );
+
+        if (careerSkillError) {
+          console.error(
+            "Career skill error:",
+            careerSkillError
+          );
+
+          setErrorMessage(
+            "Bobot kompetensi career gagal dimuat."
+          );
+
+          setLoading(false);
+          return;
+        }
+
+        setCareerSkills(
+          (careerSkillData ??
+            []) as CareerSkill[]
+        );
+
         setLoading(false);
       } catch (error) {
         console.error(
@@ -275,65 +510,160 @@ export default function SkillGapPage() {
     }
 
     loadSkillGap();
-  }, [careerId, router]);
+  }, [
+    careerId,
+    assessmentId,
+    router,
+  ]);
 
-  /* =========================================================
+  /* =======================================================
      SKILL NAME MAP
-  ========================================================= */
+  ======================================================= */
 
-  const skillNameMap = useMemo(() => {
-    const map =
-      new Map<string, string>();
+  const skillNameMap =
+    useMemo(() => {
+      const map =
+        new Map<
+          string,
+          string
+        >();
 
-    skills.forEach((skill) => {
-      map.set(
-        skill.id,
-        skill.name
+      skills.forEach(
+        (skill) => {
+          map.set(
+            skill.id,
+            skill.name
+          );
+        }
       );
-    });
 
-    return map;
-  }, [skills]);
+      return map;
+    }, [skills]);
 
-  /* =========================================================
+  /* =======================================================
+     CAREER SKILL MAP
+  ======================================================= */
+
+  const careerSkillMap =
+    useMemo(() => {
+      const map =
+        new Map<
+          string,
+          CareerSkill
+        >();
+
+      careerSkills.forEach(
+        (item) => {
+          map.set(
+            item.skill_id,
+            item
+          );
+        }
+      );
+
+      return map;
+    }, [careerSkills]);
+
+  /* =======================================================
      DEVELOPMENT SKILLS
-  ========================================================= */
+  ======================================================= */
 
   const developmentSkills =
     useMemo(() => {
-      return [...skillResults]
-        .filter(
-          (result) =>
-            result.score <
-            result.target_score
-        )
-        .sort(
-          (a, b) =>
-            b.gap - a.gap
-        );
+      return skillResults.filter(
+        (result) =>
+          result.score <
+          result.target_score
+      );
     }, [skillResults]);
 
-  /* =========================================================
+  /* =======================================================
      STRONG SKILLS
-  ========================================================= */
+  ======================================================= */
 
   const strongSkills =
     useMemo(() => {
-      return [...skillResults]
-        .filter(
-          (result) =>
-            result.score >=
-            result.target_score
-        )
-        .sort(
-          (a, b) =>
-            b.score - a.score
-        );
+      return skillResults.filter(
+        (result) =>
+          result.score >=
+          result.target_score
+      );
     }, [skillResults]);
 
-  /* =========================================================
-     SUMMARY
-  ========================================================= */
+  /* =======================================================
+     PRIORITY ITEMS
+  ======================================================= */
+
+  const priorityItems =
+    useMemo<PriorityItem[]>(() => {
+      return developmentSkills
+        .map((result) => {
+          const careerSkill =
+            careerSkillMap.get(
+              result.skill_id
+            );
+
+          /*
+           * Database sekarang sudah memiliki
+           * importance.
+           *
+           * Fallback 3 hanya sebagai pengaman
+           * apabila ada data lama yang null.
+           */
+          const importance =
+            careerSkill?.importance ??
+            3;
+
+          const priorityScore =
+            calculatePriorityScore(
+              result.gap,
+              importance
+            );
+
+          const priorityLevel =
+            getPriorityLevel(
+              priorityScore
+            );
+
+          return {
+            result,
+            skillName:
+              skillNameMap.get(
+                result.skill_id
+              ) ??
+              result.skill_id,
+            importance,
+            priorityScore,
+            priorityLevel,
+          };
+        })
+        .sort(
+          (a, b) =>
+            b.priorityScore -
+            a.priorityScore
+        );
+    }, [
+      developmentSkills,
+      careerSkillMap,
+      skillNameMap,
+    ]);
+
+  /* =======================================================
+     CRITICAL COMPETENCIES
+  ======================================================= */
+
+  const criticalCompetencies =
+    useMemo(() => {
+      return priorityItems.filter(
+        (item) =>
+          item.priorityLevel ===
+          "critical"
+      );
+    }, [priorityItems]);
+
+  /* =======================================================
+     AVERAGE GAP
+  ======================================================= */
 
   const averageGap =
     useMemo(() => {
@@ -346,8 +676,8 @@ export default function SkillGapPage() {
 
       const total =
         developmentSkills.reduce(
-          (sum, result) =>
-            sum + result.gap,
+          (sum, item) =>
+            sum + item.gap,
           0
         );
 
@@ -355,16 +685,25 @@ export default function SkillGapPage() {
         total /
           developmentSkills.length
       );
-    }, [developmentSkills]);
+    }, [
+      developmentSkills,
+    ]);
 
-  /* =========================================================
+  /* =======================================================
+     HIGHEST PRIORITY
+  ======================================================= */
+
+  const highestPriority =
+    priorityItems[0] ??
+    null;
+
+  /* =======================================================
      LOADING
-  ========================================================= */
+  ======================================================= */
 
   if (loading) {
     return (
-      <main className="min-h-screen bg-[#f7faff] px-6 py-8">
-
+      <main className="min-h-screen bg-[#f7faff] px-4 py-6 sm:px-6 sm:py-8">
         <div className="mx-auto max-w-6xl animate-pulse">
 
           <div className="h-5 w-28 rounded-full bg-blue-100" />
@@ -378,19 +717,17 @@ export default function SkillGapPage() {
           <div className="mt-5 h-72 rounded-[26px] bg-white" />
 
         </div>
-
       </main>
     );
   }
 
-  /* =========================================================
+  /* =======================================================
      ERROR
-  ========================================================= */
+  ======================================================= */
 
   if (errorMessage) {
     return (
-      <main className="min-h-screen bg-[#f7faff] px-6 py-8">
-
+      <main className="min-h-screen bg-[#f7faff] px-4 py-6 sm:px-6 sm:py-8">
         <div className="mx-auto max-w-6xl">
 
           <div className="rounded-[26px] border border-red-100 bg-white p-8">
@@ -400,7 +737,9 @@ export default function SkillGapPage() {
             </div>
 
             <h1 className="mt-5 text-2xl font-bold text-slate-950">
-              Skill Gap tidak dapat dimuat
+              {t(
+                "skillGap.errorTitle"
+              )}
             </h1>
 
             <p className="mt-3 text-sm text-slate-500">
@@ -412,28 +751,31 @@ export default function SkillGapPage() {
               onClick={() =>
                 window.location.reload()
               }
-              className="mt-6 inline-flex items-center gap-2 rounded-xl bg-blue-600 px-5 py-3 text-sm font-semibold text-white"
+              className="mt-6 inline-flex items-center gap-2 rounded-xl bg-blue-600 px-5 py-3 text-sm font-semibold text-white transition hover:bg-blue-700"
             >
-              Coba Lagi
+              {t(
+                "skillGap.tryAgain"
+              )}
               <ArrowRight size={16} />
             </button>
 
           </div>
 
         </div>
-
       </main>
     );
   }
 
-  /* =========================================================
+  /* =======================================================
      EMPTY
-  ========================================================= */
+  ======================================================= */
 
-  if (!assessment || !career) {
+  if (
+    !assessment ||
+    !career
+  ) {
     return (
-      <main className="min-h-screen bg-[#f7faff] px-6 py-8">
-
+      <main className="min-h-screen bg-[#f7faff] px-4 py-6 sm:px-6 sm:py-8">
         <div className="mx-auto max-w-6xl">
 
           <div className="rounded-[26px] border border-slate-200 bg-white p-8">
@@ -443,12 +785,15 @@ export default function SkillGapPage() {
             </div>
 
             <h1 className="mt-5 text-2xl font-bold text-slate-950">
-              Belum ada hasil Skill Check
+              {t(
+                "skillGap.noAssessment"
+              )}
             </h1>
 
-            <p className="mt-3 text-sm leading-6 text-slate-500">
-              Kerjakan Skill Check terlebih dahulu
-              untuk melihat analisis Skill Gap.
+            <p className="mt-3 max-w-xl text-sm leading-6 text-slate-500">
+              {t(
+                "skillGap.noAssessmentDescription"
+              )}
             </p>
 
             <button
@@ -458,34 +803,35 @@ export default function SkillGapPage() {
                   "/skillcheck"
                 )
               }
-              className="mt-6 inline-flex items-center gap-2 rounded-xl bg-blue-600 px-5 py-3 text-sm font-semibold text-white"
+              className="mt-6 inline-flex items-center gap-2 rounded-xl bg-blue-600 px-5 py-3 text-sm font-semibold text-white transition hover:bg-blue-700"
             >
-              Mulai Skill Check
+              {t(
+                "skillCheck.startSkillCheck"
+              )}
               <ArrowRight size={16} />
             </button>
 
           </div>
 
         </div>
-
       </main>
     );
   }
 
-  /* =========================================================
+  /* =======================================================
      MAIN
-  ========================================================= */
+  ======================================================= */
 
   return (
-    <main className="min-h-screen bg-[#f7faff] px-6 py-8">
+    <main className="min-h-screen bg-[#f7faff] px-4 py-6 sm:px-6 sm:py-8">
 
       <div className="mx-auto max-w-6xl">
 
-        {/* ===================================================
+        {/* =================================================
             HEADER
-        =================================================== */}
+        ================================================= */}
 
-        <section className="relative overflow-hidden rounded-[30px] border border-blue-100 bg-white p-7 shadow-[0_15px_45px_rgba(37,99,235,0.06)] sm:p-8">
+        <section className="relative overflow-hidden rounded-[30px] border border-blue-100 bg-white p-6 shadow-[0_15px_45px_rgba(37,99,235,0.06)] sm:p-8">
 
           <div className="relative z-10">
 
@@ -496,7 +842,9 @@ export default function SkillGapPage() {
               </span>
 
               <span className="text-xs font-bold uppercase tracking-wider text-yellow-600">
-                Skill Gap Analysis
+                {t(
+                  "skillGap.label"
+                )}
               </span>
 
               <span
@@ -507,19 +855,26 @@ export default function SkillGapPage() {
                 }`}
               >
                 {isPremium
-                  ? "Premium"
-                  : "Freemium"}
+                  ? t(
+                      "skillGap.premium"
+                    )
+                  : t(
+                      "skillGap.free"
+                    )}
               </span>
 
             </div>
 
             <h1 className="mt-5 text-3xl font-bold tracking-tight text-slate-950 sm:text-4xl">
-              Analisis Skill Gap
+              {t(
+                "skillGap.title"
+              )}
             </h1>
 
             <p className="mt-2 max-w-2xl text-sm leading-7 text-slate-500">
-              Lihat posisi kompetensimu terhadap
-              benchmark untuk{" "}
+              {t(
+                "skillGap.subtitle"
+              )}{" "}
               <span className="font-semibold text-slate-700">
                 {career.name}
               </span>
@@ -534,8 +889,10 @@ export default function SkillGapPage() {
               </span>
 
               <span className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-3.5 py-2 text-xs text-slate-500">
-                Assessment #
-                {assessment.attempt_number}
+                {t(
+                  "skillGap.assessment"
+                )}{" "}
+                #{assessment.attempt_number}
               </span>
 
             </div>
@@ -548,9 +905,9 @@ export default function SkillGapPage() {
 
         </section>
 
-        {/* ===================================================
-            FREE PREVIEW
-        =================================================== */}
+        {/* =================================================
+            FREE USER
+        ================================================= */}
 
         {!isPremium && (
           <section className="mt-5 overflow-hidden rounded-[26px] border border-yellow-200 bg-white shadow-[0_10px_35px_rgba(245,158,11,0.06)]">
@@ -564,29 +921,35 @@ export default function SkillGapPage() {
                   <div className="flex items-center gap-2">
 
                     <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-yellow-100 text-yellow-700">
-                      <Sparkles size={17} />
+                      <Lock size={17} />
                     </span>
 
                     <p className="text-xs font-bold uppercase tracking-wider text-yellow-700">
-                      Preview Skill Gap
+                      {t(
+                        "skillGap.preview"
+                      )}
                     </p>
 
                   </div>
 
                   <h2 className="mt-3 text-xl font-bold text-slate-950">
-                    Kamu memiliki{" "}
+                    {t(
+                      "skillGap.previewTitle"
+                    )}{" "}
                     <span className="text-yellow-600">
-                      {developmentSkills.length}
+                      {
+                        developmentSkills.length
+                      }
                     </span>{" "}
-                    kompetensi yang perlu dikembangkan
+                    {t(
+                      "skillGap.previewTitleSuffix"
+                    )}
                   </h2>
 
                   <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-500">
-                    SkillMap menemukan beberapa
-                    kompetensi yang masih memiliki
-                    jarak dari benchmark kariermu.
-                    Detail analisis dan prioritas
-                    pengembangan tersedia di Premium.
+                    {t(
+                      "skillGap.previewDescription"
+                    )}
                   </p>
 
                 </div>
@@ -596,11 +959,15 @@ export default function SkillGapPage() {
                   <div className="rounded-2xl border border-yellow-100 bg-white px-5 py-4 text-center shadow-sm">
 
                     <p className="text-2xl font-bold text-yellow-600">
-                      {developmentSkills.length}
+                      {
+                        developmentSkills.length
+                      }
                     </p>
 
                     <p className="mt-1 text-[10px] font-semibold uppercase tracking-wider text-slate-400">
-                      Skill Gap
+                      {t(
+                        "skillGap.gap"
+                      )}
                     </p>
 
                   </div>
@@ -611,8 +978,6 @@ export default function SkillGapPage() {
 
             </div>
 
-            {/* LOCKED PREVIEW */}
-
             <div className="p-6 sm:p-7">
 
               <div className="relative overflow-hidden rounded-2xl border border-slate-100 bg-slate-50/70">
@@ -620,12 +985,11 @@ export default function SkillGapPage() {
                 <div className="space-y-3 p-5">
 
                   {Array.from({
-                    length:
-                      Math.min(
-                        developmentSkills.length ||
-                          3,
-                        3
-                      ),
+                    length: Math.min(
+                      developmentSkills.length ||
+                        3,
+                      3
+                    ),
                   }).map(
                     (_, index) => (
                       <div
@@ -658,11 +1022,15 @@ export default function SkillGapPage() {
                     </div>
 
                     <p className="mt-3 text-sm font-bold text-slate-900">
-                      Detail Skill Gap terkunci
+                      {t(
+                        "skillGap.lockedTitle"
+                      )}
                     </p>
 
                     <p className="mt-1 text-xs text-slate-500">
-                      Upgrade untuk melihat analisis lengkap.
+                      {t(
+                        "skillGap.lockedDescription"
+                      )}
                     </p>
 
                   </div>
@@ -671,20 +1039,20 @@ export default function SkillGapPage() {
 
               </div>
 
-              {/* UPGRADE */}
-
               <div className="mt-5 flex flex-col items-center justify-between gap-4 rounded-2xl border border-yellow-100 bg-yellow-50/60 p-5 sm:flex-row">
 
                 <div>
 
                   <p className="text-sm font-bold text-slate-900">
-                    Buka seluruh analisis Skill Gap
+                    {t(
+                      "skillGap.upgradeTitle"
+                    )}
                   </p>
 
                   <p className="mt-1 text-xs leading-5 text-slate-500">
-                    Lihat skill yang paling perlu
-                    dikembangkan, skor, target, dan
-                    prioritas pengembangannya.
+                    {t(
+                      "skillGap.upgradeDescription"
+                    )}
                   </p>
 
                 </div>
@@ -692,11 +1060,15 @@ export default function SkillGapPage() {
                 <button
                   type="button"
                   onClick={() =>
-                    router.push("/upgrade")
+                    router.push(
+                      "/upgrade"
+                    )
                   }
                   className="inline-flex shrink-0 items-center gap-2 rounded-xl bg-yellow-500 px-5 py-3 text-sm font-bold text-white shadow-md shadow-yellow-500/20 transition hover:-translate-y-0.5 hover:bg-yellow-600"
                 >
-                  Tingkatkan Paket
+                  {t(
+                    "skillGap.upgrade"
+                  )}
                   <ArrowRight size={16} />
                 </button>
 
@@ -707,19 +1079,25 @@ export default function SkillGapPage() {
           </section>
         )}
 
-        {/* ===================================================
-            PREMIUM SUMMARY
-        =================================================== */}
+        {/* =================================================
+            PREMIUM
+        ================================================= */}
 
         {isPremium && (
           <>
+            {/* =============================================
+                SUMMARY
+            ============================================= */}
+
             <section className="mt-5 grid gap-4 md:grid-cols-3">
 
               <PremiumStat
                 icon={
                   <TrendingUp size={19} />
                 }
-                label="Skill Perlu Dikembangkan"
+                label={t(
+                  "skillGap.skillsToDevelop"
+                )}
                 value={
                   developmentSkills.length
                 }
@@ -729,7 +1107,9 @@ export default function SkillGapPage() {
                 icon={
                   <Target size={19} />
                 }
-                label="Rata-rata Gap"
+                label={t(
+                  "skillGap.averageGap"
+                )}
                 value={
                   averageGap
                 }
@@ -739,7 +1119,9 @@ export default function SkillGapPage() {
                 icon={
                   <CheckCircle2 size={19} />
                 }
-                label="Skill Memenuhi Target"
+                label={t(
+                  "skillGap.skillsMeetingTarget"
+                )}
                 value={
                   strongSkills.length
                 }
@@ -747,9 +1129,9 @@ export default function SkillGapPage() {
 
             </section>
 
-            {/* =================================================
-                FULL ANALYSIS
-            ================================================= */}
+            {/* =============================================
+                PRIORITY ANALYSIS
+            ============================================= */}
 
             <section className="mt-5 rounded-[26px] border border-slate-200 bg-white p-6 shadow-[0_10px_30px_rgba(15,23,42,0.04)] sm:p-7">
 
@@ -758,65 +1140,95 @@ export default function SkillGapPage() {
                 <div>
 
                   <p className="text-xs font-bold uppercase tracking-wider text-yellow-600">
-                    Prioritas Pengembangan
+                    {t(
+                      "skillGap.priority"
+                    )}
                   </p>
 
                   <h2 className="mt-2 text-2xl font-bold text-slate-950">
-                    Kompetensi dengan gap terbesar
+                    {t(
+                      "skillGap.priorityAnalysis"
+                    )}
                   </h2>
 
-                  <p className="mt-1 text-sm text-slate-500">
-                    Mulai dari kompetensi dengan gap
-                    paling besar untuk mendapatkan
-                    dampak pengembangan yang lebih tinggi.
+                  <p className="mt-1 max-w-2xl text-sm leading-6 text-slate-500">
+                    {t(
+                      "skillGap.priorityAnalysisDescription"
+                    )}
                   </p>
 
                 </div>
 
-                <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-yellow-50 text-yellow-600">
+                <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-yellow-50 text-yellow-600">
                   <BarChart3 size={20} />
                 </div>
 
               </div>
 
+              {/* EXPLANATION */}
+
+              <div className="mt-5 rounded-2xl border border-blue-100 bg-blue-50/50 p-5">
+
+                <div className="flex items-start gap-3">
+
+                  <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-blue-100 text-blue-700">
+                    <Target size={17} />
+                  </div>
+
+                  <div>
+
+                    <p className="text-sm font-bold text-slate-900">
+                      {t(
+                        "skillGap.whyPriority"
+                      )}
+                    </p>
+
+                    <p className="mt-1 text-xs leading-6 text-slate-500">
+                      {t(
+                        "skillGap.whyPriorityDescription"
+                      )}
+                    </p>
+
+                  </div>
+
+                </div>
+
+              </div>
+
+              {/* PRIORITY LIST */}
+
               <div className="mt-6 space-y-3">
 
-                {developmentSkills.length ===
+                {priorityItems.length ===
                 0 ? (
                   <div className="rounded-2xl border border-emerald-100 bg-emerald-50 p-6">
 
                     <div className="flex items-center gap-2 text-sm font-bold text-emerald-700">
                       <CheckCircle2 size={18} />
-                      Semua kompetensi sudah memenuhi benchmark.
+                      {t(
+                        "skillGap.allReady"
+                      )}
                     </div>
 
-                    <p className="mt-2 text-sm text-emerald-600">
-                      Tidak ada skill gap yang perlu
-                      menjadi prioritas saat ini.
+                    <p className="mt-2 text-sm leading-6 text-emerald-600">
+                      {t(
+                        "skillGap.allReadyDescription"
+                      )}
                     </p>
 
                   </div>
                 ) : (
-                  developmentSkills.map(
-                    (result, index) => (
-                      <SkillGapRow
-                        key={result.id}
-                        rank={index + 1}
-                        name={
-                          skillNameMap.get(
-                            result.skill_id
-                          ) ??
-                          result.skill_id
+                  priorityItems.map(
+                    (item, index) => (
+                      <PriorityRow
+                        key={
+                          item.result.id
                         }
-                        score={
-                          result.score
+                        rank={
+                          index + 1
                         }
-                        target={
-                          result.target_score
-                        }
-                        gap={
-                          result.gap
-                        }
+                        item={item}
+                        t={t}
                       />
                     )
                   )
@@ -826,9 +1238,138 @@ export default function SkillGapPage() {
 
             </section>
 
-            {/* =================================================
-                INSIGHT
-            ================================================= */}
+            {/* =============================================
+                CRITICAL COMPETENCIES
+            ============================================= */}
+
+            {criticalCompetencies.length >
+              0 && (
+              <section className="mt-5 rounded-[26px] border border-orange-100 bg-gradient-to-br from-white via-white to-orange-50/50 p-6 sm:p-7">
+
+                <div className="flex items-start gap-4">
+
+                  <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-orange-50 text-orange-600">
+                    <TrendingUp size={19} />
+                  </div>
+
+                  <div className="min-w-0">
+
+                    <p className="text-xs font-bold uppercase tracking-wider text-orange-600">
+                      {t(
+                        "skillGap.criticalCompetencies"
+                      )}
+                    </p>
+
+                    <h2 className="mt-2 text-xl font-bold text-slate-950">
+                      {criticalCompetencies.length}{" "}
+                      {t(
+                        "skillGap.criticalCompetenciesTitle"
+                      )}
+                    </h2>
+
+                    <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-500">
+                      {t(
+                        "skillGap.criticalCompetenciesDescription"
+                      )}
+                    </p>
+
+                    <div className="mt-4 flex flex-wrap gap-2">
+
+                      {criticalCompetencies
+                        .slice(
+                          0,
+                          5
+                        )
+                        .map(
+                          (item) => (
+                            <span
+                              key={
+                                item.result.id
+                              }
+                              className="rounded-full border border-orange-100 bg-white px-3 py-1.5 text-xs font-semibold text-orange-700"
+                            >
+                              {
+                                item.skillName
+                              }
+                            </span>
+                          )
+                        )}
+
+                    </div>
+
+                  </div>
+
+                </div>
+
+              </section>
+            )}
+
+            {/* =============================================
+                DEVELOPMENT PRIORITY
+            ============================================= */}
+
+            {highestPriority && (
+              <section className="mt-5 rounded-[26px] border border-slate-200 bg-white p-6 shadow-[0_10px_30px_rgba(15,23,42,0.04)] sm:p-7">
+
+                <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
+
+                  <div className="min-w-0">
+
+                    <p className="text-xs font-bold uppercase tracking-wider text-blue-600">
+                      {t(
+                        "skillGap.developmentPriority"
+                      )}
+                    </p>
+
+                    <h2 className="mt-2 text-xl font-bold text-slate-950">
+                      {
+                        highestPriority.skillName
+                      }
+                    </h2>
+
+                    <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-500">
+                      {t(
+                        "skillGap.developmentPriorityDescription"
+                      )}
+                    </p>
+
+                  </div>
+
+                  <div className="grid shrink-0 grid-cols-3 gap-3">
+
+                    <MiniMetric
+                      label={t(
+                        "skillGap.score"
+                      )}
+                      value={`${highestPriority.result.score}`}
+                    />
+
+                    <MiniMetric
+                      label={t(
+                        "skillGap.gap"
+                      )}
+                      value={`${highestPriority.result.gap}`}
+                    />
+
+                    <MiniMetric
+                      label={t(
+                        "skillGap.priorityScore"
+                      )}
+                      value={`${Math.round(
+                        highestPriority.priorityScore
+                      )}`}
+                    />
+
+                  </div>
+
+                </div>
+
+              </section>
+            )}
+
+            {/* =============================================
+                WHY IT MATTERS
+            ============================================= */}
 
             <section className="mt-5 rounded-[26px] border border-blue-100 bg-gradient-to-br from-white via-white to-blue-50/60 p-6 sm:p-7">
 
@@ -841,36 +1382,79 @@ export default function SkillGapPage() {
                 <div>
 
                   <p className="text-xs font-bold uppercase tracking-wider text-blue-600">
-                    Insight SkillMap
+                    {t(
+                      "skillGap.whyItMatters"
+                    )}
                   </p>
 
                   <h2 className="mt-2 text-lg font-bold text-slate-950">
-                    Fokus pengembanganmu
+                    {t(
+                      "skillGap.whyItMattersTitle"
+                    )}
                   </h2>
 
-                  <p className="mt-2 text-sm leading-7 text-slate-500">
-                    Prioritaskan kompetensi dengan
-                    gap terbesar terlebih dahulu.
-                    Setelah kompetensi tersebut
-                    berkembang, lakukan reassessment
-                    untuk melihat perubahan kesiapan
-                    kariermu.
+                  <p className="mt-2 max-w-3xl text-sm leading-7 text-slate-500">
+
+                    {highestPriority
+                      ? `${highestPriority.skillName} memiliki gap ${highestPriority.result.gap} poin dari benchmark ${highestPriority.result.target_score}. ${t(
+                          "skillGap.whyItMattersDescription"
+                        )}`
+                      : t(
+                          "skillGap.allReadyDescription"
+                        )}
+
                   </p>
 
-                  <button
-                    type="button"
-                    onClick={() =>
-                      router.push(
-                        `/roadmap?career=${career.id}`
-                      )
-                    }
-                    className="mt-5 inline-flex items-center gap-2 rounded-xl bg-blue-600 px-5 py-3 text-sm font-semibold text-white shadow-md shadow-blue-600/20 transition hover:-translate-y-0.5 hover:bg-blue-700"
-                  >
-                    Lanjut ke Roadmap
-                    <ArrowRight size={16} />
-                  </button>
+                </div>
+
+              </div>
+
+            </section>
+
+            {/* =============================================
+                NEXT STEP
+            ============================================= */}
+
+            <section className="mt-5 rounded-[26px] border border-blue-100 bg-white p-6 shadow-[0_10px_30px_rgba(15,23,42,0.04)] sm:p-7">
+
+              <div className="flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between">
+
+                <div>
+
+                  <p className="text-xs font-bold uppercase tracking-wider text-blue-600">
+                    {t(
+                      "skillGap.nextStep"
+                    )}
+                  </p>
+
+                  <h2 className="mt-2 text-xl font-bold text-slate-950">
+                    {t(
+                      "skillGap.nextStepTitle"
+                    )}
+                  </h2>
+
+                  <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-500">
+                    {t(
+                      "skillGap.nextStepDescription"
+                    )}
+                  </p>
 
                 </div>
+
+                <button
+                  type="button"
+                  onClick={() =>
+                    router.push(
+                      `/roadmap?career=${career.id}&assessment=${assessment.id}`
+                    )
+                  }
+                  className="inline-flex shrink-0 items-center justify-center gap-2 rounded-xl bg-blue-600 px-6 py-3 text-sm font-semibold text-white shadow-md shadow-blue-600/20 transition hover:-translate-y-0.5 hover:bg-blue-700"
+                >
+                  {t(
+                    "skillGap.viewRoadmap"
+                  )}
+                  <ArrowRight size={16} />
+                </button>
 
               </div>
 
@@ -878,12 +1462,10 @@ export default function SkillGapPage() {
           </>
         )}
 
-        {/* ===================================================
-            FOOTER NOTE
-        =================================================== */}
-
         <div className="mt-6 px-1 pb-8 text-xs text-slate-400">
-          Data berdasarkan Skill Check terakhir.
+          {t(
+            "skillGap.footer"
+          )}
         </div>
 
       </div>
@@ -901,7 +1483,7 @@ function PremiumStat({
   label,
   value,
 }: {
-  icon: React.ReactNode;
+  icon: ReactNode;
   label: string;
   value: number;
 }) {
@@ -929,76 +1511,279 @@ function PremiumStat({
 }
 
 /* =========================================================
-   SKILL GAP ROW
+   MINI METRIC
 ========================================================= */
 
-function SkillGapRow({
+function MiniMetric({
+  label,
+  value,
+}: {
+  label: string;
+  value: string;
+}) {
+  return (
+    <div className="min-w-[80px] rounded-xl border border-slate-200 bg-slate-50 px-3 py-3 text-center">
+
+      <p className="text-[10px] font-bold uppercase tracking-wide text-slate-400">
+        {label}
+      </p>
+
+      <p className="mt-1 text-lg font-bold text-slate-900">
+        {value}
+      </p>
+
+    </div>
+  );
+}
+
+/* =========================================================
+   PRIORITY ROW
+========================================================= */
+
+function PriorityRow({
   rank,
-  name,
-  score,
-  target,
-  gap,
+  item,
+  t,
 }: {
   rank: number;
-  name: string;
-  score: number;
-  target: number;
-  gap: number;
+  item: PriorityItem;
+  t: (path: string) => string;
 }) {
-  const percentage = Math.min(
-    Math.max(score, 0),
-    100
-  );
+  const {
+    result,
+    skillName,
+    importance,
+    priorityScore,
+    priorityLevel,
+  } = item;
+
+  const scorePercentage =
+    Math.min(
+      Math.max(
+        result.score,
+        0
+      ),
+      100
+    );
+
+  const priorityLabel =
+    priorityLevel ===
+    "critical"
+      ? t(
+          "skillGap.priorityCritical"
+        )
+      : priorityLevel ===
+          "high"
+        ? t(
+            "skillGap.priorityHigh"
+          )
+        : t(
+            "skillGap.priorityMedium"
+          );
+
+  const priorityClass =
+    priorityLevel ===
+    "critical"
+      ? "bg-blue-600 text-white"
+      : priorityLevel ===
+          "high"
+        ? "bg-blue-50 text-blue-700"
+        : "bg-slate-100 text-slate-600";
+
+  const importanceLabel =
+    importance === 5
+      ? t(
+          "skillGap.importanceVeryHigh"
+        )
+      : importance === 4
+        ? t(
+            "skillGap.importanceHigh"
+          )
+        : importance === 3
+          ? t(
+              "skillGap.importanceMedium"
+            )
+          : importance === 2
+            ? t(
+                "skillGap.importanceLow"
+              )
+            : t(
+                "skillGap.importanceVeryLow"
+              );
 
   return (
-    <div className="rounded-2xl border border-slate-100 bg-slate-50/70 p-5 transition duration-300 hover:border-yellow-200 hover:bg-yellow-50/30">
+    <div className="rounded-2xl border border-slate-200 bg-white p-5 transition hover:border-blue-200 hover:shadow-sm">
 
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
+      <div className="flex flex-col gap-4">
 
-        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-yellow-50 text-sm font-bold text-yellow-700">
-          {rank}
+        {/* HEADER */}
+
+        <div className="flex items-start gap-4">
+
+          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-yellow-50 text-sm font-bold text-yellow-700">
+            {rank}
+          </div>
+
+          <div className="min-w-0 flex-1">
+
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+
+              <div>
+
+                <p className="text-sm font-bold text-slate-900">
+                  {skillName}
+                </p>
+
+                <p className="mt-1 text-xs text-slate-400">
+                  {t(
+                    "skillGap.score"
+                  )}{" "}
+                  {result.score}
+                  {" · "}
+                  {t(
+                    "skillGap.target"
+                  )}{" "}
+                  {result.target_score}
+                </p>
+
+              </div>
+
+              <span
+                className={`w-fit rounded-full px-3 py-1.5 text-[10px] font-bold ${priorityClass}`}
+              >
+                {priorityLabel}
+              </span>
+
+            </div>
+
+          </div>
+
         </div>
 
-        <div className="min-w-0 flex-1">
+        {/* METRICS */}
 
-          <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="grid gap-2 sm:grid-cols-4">
 
-            <div>
+          <div className="rounded-xl bg-slate-50 px-3 py-3">
 
-              <p className="text-sm font-bold text-slate-900">
-                {name}
-              </p>
+            <p className="text-[10px] font-bold uppercase tracking-wide text-slate-400">
+              {t(
+                "skillGap.gap"
+              )}
+            </p>
 
-              <p className="mt-1 text-xs text-slate-400">
-                Skor {score} · Target {target}
-              </p>
+            <p className="mt-1 text-lg font-bold text-slate-900">
+              {result.gap}
+            </p>
 
-            </div>
+          </div>
 
-            <span className="rounded-full bg-yellow-50 px-3 py-1.5 text-xs font-bold text-yellow-700">
-              Gap {gap}
+          <div className="rounded-xl bg-slate-50 px-3 py-3">
+
+            <p className="text-[10px] font-bold uppercase tracking-wide text-slate-400">
+              {t(
+                "skillGap.importance"
+              )}
+            </p>
+
+            <p className="mt-1 text-sm font-bold text-slate-900">
+              {importanceLabel}
+            </p>
+
+          </div>
+
+          <div className="rounded-xl bg-slate-50 px-3 py-3">
+
+            <p className="text-[10px] font-bold uppercase tracking-wide text-slate-400">
+              {t(
+                "skillGap.priorityScore"
+              )}
+            </p>
+
+            <p className="mt-1 text-lg font-bold text-slate-900">
+              {Math.round(
+                priorityScore
+              )}
+            </p>
+
+          </div>
+
+          <div className="rounded-xl bg-slate-50 px-3 py-3">
+
+            <p className="text-[10px] font-bold uppercase tracking-wide text-slate-400">
+              {t(
+                "skillGap.status"
+              )}
+            </p>
+
+            <p className="mt-1 text-sm font-bold text-orange-600">
+              {t(
+                "skillGap.needsDevelopment"
+              )}
+            </p>
+
+          </div>
+
+        </div>
+
+        {/* SCORE BAR */}
+
+        <div>
+
+          <div className="flex items-center justify-between text-xs text-slate-500">
+
+            <span>
+              {t(
+                "skillGap.currentCompetency"
+              )}
+            </span>
+
+            <span>
+              {result.score} /{" "}
+              {result.target_score}
             </span>
 
           </div>
 
-          <div className="mt-4 flex items-center gap-3">
+          <div className="mt-2 h-2 overflow-hidden rounded-full bg-slate-100">
 
-            <div className="h-2 flex-1 overflow-hidden rounded-full bg-slate-200">
-
-              <div
-                className="h-full rounded-full bg-yellow-400 transition-all duration-700"
-                style={{
-                  width: `${percentage}%`,
-                }}
-              />
-
-            </div>
-
-            <span className="w-16 text-right text-xs font-semibold text-slate-500">
-              {score}/{target}
-            </span>
+            <div
+              className="h-full rounded-full bg-blue-600 transition-all duration-700"
+              style={{
+                width: `${scorePercentage}%`,
+              }}
+            />
 
           </div>
+
+        </div>
+
+        {/* WHY */}
+
+        <div className="rounded-xl border border-blue-100 bg-blue-50/50 px-4 py-3">
+
+          <p className="text-xs font-semibold text-slate-700">
+            {t(
+              "skillGap.whyItMatters"
+            )}
+          </p>
+
+          <p className="mt-1 text-xs leading-5 text-slate-500">
+
+            {skillName}{" "}
+            {t(
+              "skillGap.gapReason"
+            )}{" "}
+            {result.gap}{" "}
+            {t(
+              "skillGap.gapReasonSuffix"
+            )}{" "}
+            {t(
+              "skillGap.importanceReason"
+            )}{" "}
+            {importanceLabel}.
+
+          </p>
 
         </div>
 

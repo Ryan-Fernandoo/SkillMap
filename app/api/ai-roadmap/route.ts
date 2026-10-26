@@ -1,123 +1,199 @@
 import { NextResponse } from "next/server";
 
-export async function POST(req: Request) {
+type PrioritySkill = {
+  name: string;
+  score: number;
+  target: number;
+  gap: number;
+  importance: number;
+  priorityScore: number;
+  priorityLevel: string;
+};
+
+export async function POST(
+  req: Request
+) {
   try {
-    const body = await req.json();
+    const body =
+      await req.json();
 
-    const { career, skills } = body;
+    const {
+      career,
+      priorities,
+    } = body as {
+      career?: string;
+      priorities?: PrioritySkill[];
+    };
 
-    if (!career || !Array.isArray(skills)) {
+    if (
+      !career ||
+      !Array.isArray(priorities)
+    ) {
       return NextResponse.json(
-        { error: "Data roadmap tidak lengkap." },
-        { status: 400 }
+        {
+          error:
+            "Data roadmap tidak lengkap.",
+        },
+        {
+          status: 400,
+        }
       );
     }
 
-    const apiKey = process.env.OPENROUTER_API_KEY;
+    const apiKey =
+      process.env.OPENROUTER_API_KEY;
 
     if (!apiKey) {
       return NextResponse.json(
-        { error: "OPENROUTER_API_KEY belum tersedia." },
-        { status: 500 }
+        {
+          error:
+            "OPENROUTER_API_KEY belum tersedia.",
+        },
+        {
+          status: 500,
+        }
       );
     }
 
-    const skillSummary = skills
-      .map(
-        (skill: {
-          name: string;
-          score: number;
-          target: number;
-          gap: number;
-          status: string;
-        }) =>
-          `- ${skill.name}: skor ${skill.score}, benchmark ${skill.target}, gap ${skill.gap}, status ${skill.status}`
-      )
-      .join("\n");
+    const prioritySummary =
+      priorities
+        .map(
+          (
+            skill,
+            index
+          ) =>
+            `${index + 1}. ${
+              skill.name
+            }
+- skor saat ini: ${skill.score}
+- benchmark: ${skill.target}
+- gap: ${skill.gap}
+- tingkat kepentingan career: ${skill.importance}/5
+- priority score: ${Math.round(
+              skill.priorityScore
+            )}
+- level prioritas: ${
+              skill.priorityLevel
+            }`
+        )
+        .join("\n\n");
 
     const prompt = `
-Kamu adalah AI career advisor di platform SkillMap.
+Kamu adalah AI career development advisor di platform SkillMap.
 
-Career target:
+Target career:
 ${career}
 
-Hasil kompetensi pengguna:
-${skillSummary}
+Berikut adalah hasil PRIORITAS dari Skill Gap SkillMap:
 
-Buat personalized roadmap pengembangan kompetensi berdasarkan hasil tersebut.
+${prioritySummary}
 
-Prioritaskan kompetensi dengan gap terbesar.
+Tugasmu adalah mengubah prioritas tersebut menjadi personalized development roadmap yang praktis.
 
-Berikan jawaban dalam Bahasa Indonesia yang natural, praktis, dan mudah dipahami.
+PENTING:
+- Gunakan urutan prioritas yang diberikan.
+- Jangan mengubah priority score.
+- Jangan mengubah skor assessment.
+- Jangan membuat skill baru.
+- Jangan menghilangkan kompetensi prioritas utama.
+- Fokus pada pengembangan kompetensi.
+- Jangan memberikan rekomendasi lowongan atau perusahaan.
+- Jangan membuat roadmap berdasarkan gap terbesar saja.
+- Pertimbangkan priority score dan tingkat kepentingan career.
+- Jangan menggunakan tabel.
+- Jangan menggunakan Markdown heading seperti # atau ##.
+- Jangan menggunakan **.
+- Gunakan Bahasa Indonesia yang natural.
+- Jawaban harus praktis dan tidak terlalu panjang.
 
 Gunakan format berikut:
 
-PRIORITAS PENGEMBANGAN
-Jelaskan 2 sampai 3 kompetensi yang paling perlu dikembangkan dan alasannya.
+RINGKASAN PRIORITAS
+Jelaskan secara singkat kompetensi mana yang menjadi fokus utama dan mengapa.
 
-LANGKAH PENGEMBANGAN
-1. Langkah konkret pertama.
-2. Langkah konkret kedua.
-3. Langkah konkret ketiga.
+ROADMAP PENGEMBANGAN
 
-FOKUS PRAKTIK
-Berikan contoh latihan, aktivitas, atau proyek sederhana yang relevan dengan kompetensi pengguna.
+FASE 1 — FOKUS UTAMA
+Jelaskan kompetensi prioritas pertama.
+Berikan langkah belajar dan latihan yang konkret.
 
-SARAN BERIKUTNYA
-Jelaskan langkah yang sebaiknya dilakukan setelah pengguna menjalankan roadmap tersebut.
+FASE 2 — PENGUATAN
+Jelaskan kompetensi prioritas berikutnya.
+Berikan aktivitas atau latihan yang konkret.
 
-ATURAN:
-- Jangan mengubah skor atau hasil assessment.
-- Jangan membuat skill baru yang tidak terdapat dalam data.
-- Jangan memberikan rekomendasi lowongan atau perusahaan.
-- Fokus pada pengembangan kompetensi.
-- Jangan menggunakan tabel.
-- Jangan menggunakan Markdown seperti # atau **.
-- Gunakan bahasa yang natural dan tidak terlalu panjang.
+FASE 3 — PENERAPAN
+Berikan contoh proyek atau praktik yang menggabungkan kompetensi prioritas tersebut.
+
+TARGET TINDAKAN
+Berikan 3 sampai 5 tindakan konkret yang dapat dilakukan pengguna dalam beberapa minggu ke depan.
+
+EVALUASI ULANG
+Jelaskan kapan pengguna sebaiknya melakukan Skill Check kembali untuk melihat perubahan kompetensinya.
+
+Buat roadmap yang personal, realistis, dan berorientasi tindakan.
 `;
 
-    const response = await fetch(
-      "https://openrouter.ai/api/v1/chat/completions",
-      {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${apiKey}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          model: "openrouter/free",
-          messages: [
-            {
-              role: "user",
-              content: prompt,
-            },
-          ],
-        }),
-      }
-    );
+    const response =
+      await fetch(
+        "https://openrouter.ai/api/v1/chat/completions",
+        {
+          method: "POST",
+          headers: {
+            Authorization:
+              `Bearer ${apiKey}`,
+            "Content-Type":
+              "application/json",
+          },
+          body: JSON.stringify({
+            model:
+              "openrouter/free",
+            messages: [
+              {
+                role: "user",
+                content:
+                  prompt,
+              },
+            ],
+          }),
+        }
+      );
 
-    const data = await response.json();
+    const data =
+      await response.json();
 
     if (!response.ok) {
-      console.error("OpenRouter roadmap error:", data);
+      console.error(
+        "OpenRouter roadmap error:",
+        data
+      );
 
       return NextResponse.json(
         {
           error:
-            data?.error?.message ||
+            data?.error
+              ?.message ||
             "Gagal mendapatkan rekomendasi dari AI.",
         },
-        { status: response.status }
+        {
+          status:
+            response.status,
+        }
       );
     }
 
     const roadmap =
-      data?.choices?.[0]?.message?.content;
+      data?.choices?.[0]
+        ?.message?.content;
 
     if (!roadmap) {
       return NextResponse.json(
-        { error: "AI tidak memberikan roadmap." },
-        { status: 500 }
+        {
+          error:
+            "AI tidak memberikan roadmap.",
+        },
+        {
+          status: 500,
+        }
       );
     }
 
@@ -125,13 +201,19 @@ ATURAN:
       roadmap,
     });
   } catch (error) {
-    console.error("AI roadmap error:", error);
+    console.error(
+      "AI roadmap error:",
+      error
+    );
 
     return NextResponse.json(
       {
-        error: "Terjadi kesalahan saat membuat personalized roadmap.",
+        error:
+          "Terjadi kesalahan saat membuat personalized roadmap.",
       },
-      { status: 500 }
+      {
+        status: 500,
+      }
     );
   }
 }
